@@ -145,3 +145,47 @@ fetch_ldc <- function(keys = NULL,
     return(data)
   }
 }
+
+
+coerce <- function(data,
+                   lookup_table = NULL,
+                   field_var = NULL,
+                   field_type_var = NULL,
+                   use_schema = FALSE,
+                   verbose = FALSE) {
+  if (use_schema) {
+    if (verbose) {
+      message("Using schema downloaded from the LDC.")
+    }
+    
+    if (verbose) {
+      message("Using Field as the field variable and DataType as the data type variable.")
+    }
+    
+    field_var <- "Field"
+    field_type_var <- "DataType"
+    
+    if (!is.null(lookup_table)) {
+      warning("Lookup table is being ignored in favor of downloading the current schema.")
+    }
+    query <- "https://napi.landscapedatacommons.org/api/v1/tbl-schema/latest"
+    
+    if (verbose) {
+      message("Attempting to query LDC with:")
+      message(query)
+    }
+    
+    # Full query results
+    full_results <- httr::GET(query,
+                              config = httr::timeout(60))
+    # Grab only the data portion
+    results_raw <- full_results[["content"]]
+    # Convert from raw to character
+    results_character <- rawToChar(results_raw)
+    # Convert from character to data frame
+    lookup_table <- jsonlite::fromJSON(results_character)
+    if (verbose) {
+      message("Schema converted from json to character")
+    }
+  }
+}
