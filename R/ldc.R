@@ -1,3 +1,8 @@
+# Requires:
+# stringr
+# httr
+# jsonlite
+
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
                       data_type,
