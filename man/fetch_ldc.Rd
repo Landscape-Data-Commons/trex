@@ -4,7 +4,14 @@
 \alias{fetch_ldc}
 \title{Query the Landscape Data Commons}
 \usage{
-fetch_ldc(keys, key_type = "ecosite", data_type = "lpi", verbose = FALSE)
+fetch_ldc(
+  keys = NULL,
+  key_type = NULL,
+  data_type,
+  key_chunk_size = 100,
+  timeout = 60,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{keys}{Character vector. The character strings containing the values to match in the query/queries.}
