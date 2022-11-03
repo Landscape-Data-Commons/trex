@@ -10,7 +10,7 @@ fetch_ldc <- function(keys = NULL,
                       timeout = 60,
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
-  base_url <- "https://napi.landscapedatacommons.org/api/v1/"
+  base_url <- "https://api.landscapedatacommons.org/api/v1/"
   valid_tables <- data.frame(data_type = c("gap",
                                            "header",
                                            "height",
