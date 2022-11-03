@@ -56,24 +56,36 @@ fetch_ldc <- function(keys = NULL,
   
   # If there are no keys, grab the whole table
   if (is.null(keys)) {
+    if (verbose) {
+      message("No keys provided; retrieving all records.")
+    }
     if (!is.null(key_type)) {
-      warning("No keys provided, ignoring key_type.")
+      warning("No keys provided. Ignoring key_type and retrieving all records.")
     }
     queries <- paste0(base_url,
                       current_table)
   } else {
     # If there are keys, chunk them then build queries
+    # This helps prevent queries so long that they fail
     if (verbose) {
       message("Grouping keys into chunks for queries.")
     }
+    # We don't know whether the keys came in as a vector of single keys or if
+    # one or more of the character strings contains keys separated by commas
+    # so we're going to handle that an get a vector of single-key strings
     keys_vector <- unlist(lapply(X = keys,
                                  FUN = function(X) {
                                    trimws(unlist(stringr::str_split(string = X,
                                                                     pattern = ",")))
                                  }))
     
+    # Figure out how many chunks to break these into based on the max number of
+    # keys in a chunk
     key_chunk_count <- ceiling(length(keys_vector) / key_chunk_size)
     
+    # Make the key chunks
+    # For each chunk, figure out the appropriate indices and paste together the
+    # relevant key values into strings that we can use to build per-chunk queries
     keys_chunks <- sapply(X = 1:key_chunk_count,
                           keys_vector = keys_vector,
                           key_chunk_size = key_chunk_size,
@@ -87,7 +99,11 @@ fetch_ldc <- function(keys = NULL,
                           })
     
     if (verbose) {
-      message("Building queries.")
+      if (length(keys_chunks == 1)) {
+        message("Building query.")
+      } else {
+        message("Building queries.")
+      }
     }
     
     queries <- paste0(base_url,
@@ -99,6 +115,8 @@ fetch_ldc <- function(keys = NULL,
   }
   
   # Use the queries to snag data
+  # This produces a list of results where each index in the list contains the
+  # results of one query
   data_list <- lapply(X = queries,
                       timeout = timeout,
                       user_agent = user_agent,
