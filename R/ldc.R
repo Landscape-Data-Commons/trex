@@ -3,6 +3,16 @@
 # httr
 # jsonlite
 
+#' A function for fetching data from the Landscape Data Commons via API query
+#' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}.
+#' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
+#' @param key_type Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
+#' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.
+#' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller querieswith the results of all the queries being combined into a single output. Defaults to \code{100}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
+#' @export
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
                       data_type,
@@ -169,6 +179,16 @@ fetch_ldc <- function(keys = NULL,
   }
 }
 
+#' A function for coercing data in a data frame into an expected format.
+#' @description Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
+#' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
+# #' @param lookup_table Optional data frame. A lookup table of data formats to coerce the data into. Must contain the variables \code{field_var} and \code{field_var_type} where \code{field_var} contains the names of the variables in \code{data} and \code{field_var_type} contains the corresponding data formats that they should be.
+# #' @param field_var
+# #' @param field_type_var
+#' @param use_schema Logical. If \code{TRUE} then the current metadata schema will be downloaded from the Landscape Data Commons and used to determine which data format every variable should be. If \code{FALSE} then the function will make a best guess at which variables should be numeric and coerce only those. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @returns The original data frame, \code{data}, either with all variable data types matching the schema from the Landscape Data Commons or with variables that could be coerced to numeric made numeric.
+#' @export
 
 coerce_ldc <- function(data,
                        # lookup_table = NULL,
