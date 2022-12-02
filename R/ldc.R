@@ -208,7 +208,7 @@ fetch_ldc <- function(keys = NULL,
                           while (length(content_df_list[[length(content_df_list)]]) > 0) {
                             last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
                             
-                            query <- paste0(X, "&take=", take, "&cursor=", last_rid + 1)
+                            query <- paste0(X, "&take=", take, "&cursor=", last_rid)
                             
                             if (verbose) {
                               message("Attempting to query LDC with:")
