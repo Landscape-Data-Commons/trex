@@ -10,6 +10,7 @@
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller querieswith the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param take Numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. Defaults to \code{10000}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @export
@@ -18,6 +19,7 @@ fetch_ldc <- function(keys = NULL,
                       data_type,
                       key_chunk_size = 100,
                       timeout = 60,
+                      take = 10000,
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   base_url <- "https://api.landscapedatacommons.org/api/v1/"
@@ -128,33 +130,120 @@ fetch_ldc <- function(keys = NULL,
   # This produces a list of results where each index in the list contains the
   # results of one query
   data_list <- lapply(X = queries,
+                      data_type = data_type,
                       timeout = timeout,
+                      take = take,
                       user_agent = user_agent,
-                      FUN = function(X, timeout, user_agent){
-                        if (verbose) {
-                          message("Attempting to query LDC with:")
-                          message(X)
+                      FUN = function(X, data_type, take, timeout, user_agent){
+                        
+                        # We handle things differently if the data type is header
+                        # because the header table doesn't have an rid variable
+                        # and we can't use take or cursor options without that
+                        
+                        if (data_type == "header") {
+                          if (verbose) {
+                            message("Attempting to query LDC with:")
+                            message(X)
+                          }
+                          
+                          # Full query response
+                          response <- httr::GET(X,
+                                                config = list(httr::timeout(timeout),
+                                                              httr::user_agent(user_agent)))
+                          
+                          # What if there's an error????
+                          if (httr::http_error(response)) {
+                            stop(paste0("Query failed with status ",
+                                        response$status_code))
+                          }
+                          
+                          # Grab only the data portion
+                          response_content <- response[["content"]]
+                          # Convert from raw to character
+                          content_character <- rawToChar(response_content)
+                          # Convert from character to data frame
+                          content_df <- jsonlite::fromJSON(content_character)
+                          
+                          content_df
+                        } else {
+                          # OKAY! So handling using take and cursor options for
+                          # anything non-header
+                          # The first query needs to not specify the cursor position
+                          # and then after that we'll keep trying with the last
+                          # rid value + 1 as the cursor until we get an empty
+                          # response
+                          query <- paste0(X, "&take=", take)
+                          
+                          if (verbose) {
+                            message("Attempting to query LDC with:")
+                            message(query)
+                          }
+                          
+                          # Full query response
+                          response <- httr::GET(query,
+                                                config = list(httr::timeout(timeout),
+                                                              httr::user_agent(user_agent)))
+                          
+                          # What if there's an error????
+                          if (httr::http_error(response)) {
+                            stop(paste0("Query failed with status ",
+                                        response$status_code))
+                          }
+                          
+                          # Grab only the data portion
+                          response_content <- response[["content"]]
+                          # Convert from raw to character
+                          content_character <- rawToChar(response_content)
+                          # Convert from character to data frame
+                          current_content_df <- jsonlite::fromJSON(content_character)
+                          
+                          content_df_list <- list(current_content_df)
+                          
+                          # Here's where we start iterating as long as we're still
+                          # getting data
+                          # So while the last returned response wasn't empty,
+                          # keep requesting the next response where the cursor
+                          # is set to the rid following the the highest rid in
+                          # the last chunk
+                          while (length(content_df_list[[length(content_df_list)]]) > 0) {
+                            last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
+                            
+                            query <- paste0(X, "&take=", take, "&cursor=", last_rid + 1)
+                            
+                            if (verbose) {
+                              message("Attempting to query LDC with:")
+                              message(query)
+                            }
+                            
+                            # Full query response
+                            response <- httr::GET(query,
+                                                  config = list(httr::timeout(timeout),
+                                                                httr::user_agent(user_agent)))
+                            
+                            # What if there's an error????
+                            if (httr::http_error(response)) {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code))
+                            }
+                            
+                            # Grab only the data portion
+                            response_content <- response[["content"]]
+                            # Convert from raw to character
+                            content_character <- rawToChar(response_content)
+                            # Convert from character to data frame
+                            current_content_df <- jsonlite::fromJSON(content_character)
+                            
+                            # Bind that onto the end of the list
+                            # The data are wrapped in list() so that it gets added
+                            # as a data frame instead of as a vector for each variable
+                            content_df_list <- c(content_df_list, list(current_content_df))
+                          }
+                          content_df <- do.call(rbind,
+                                                content_df_list)
+                          
+                          content_df
                         }
                         
-                        # Full query response
-                        response <- httr::GET(X,
-                                              config = list(httr::timeout(timeout),
-                                                            httr::user_agent(user_agent)))
-                        
-                        # What if there's an error????
-                        if (httr::http_error(response)) {
-                          stop(paste0("Query failed with status ",
-                                      response$status_code))
-                        }
-                        
-                        # Grab only the data portion
-                        response_content <- response[["content"]]
-                        # Convert from raw to character
-                        content_character <- rawToChar(response_content)
-                        # Convert from character to data frame
-                        content_df <- jsonlite::fromJSON(content_character)
-                        
-                        content_df
                       })
   
   # Combine all the results of the queries
