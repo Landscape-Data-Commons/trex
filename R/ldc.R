@@ -299,6 +299,75 @@ fetch_ldc <- function(keys = NULL,
   }
 }
 
+#' A function for fetching data from the Landscape Data Commons using spatial constraints
+#' @description A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC. Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{fetch_ldc()} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
+#' @param polygons Polygon sf object. The polygon or polygons describing the area to retrieve data from. Only records from sampling locations falling within this area will be returned.
+#' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.
+#' @param key_chunk_size Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large, the server will respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
+#' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @returns A data frame of records from the requested \code{data_type} which came from locations within \code{polygons}.
+#' @export
+fetch_ldc_spatial <- function(polygons,
+                              data_type,
+                              key_chunk_size = 100,
+                              timeout = 60,
+                              take = NULL,
+                              verbose = FALSE) {
+  if (!("sf" %in% class(polygons))) {
+    stop("polygons must be a polygon sf object")
+  }
+  
+  # Just to get a unique ID in there for sure without having to ask the user
+  polygons$unique_id <- 1:nrow(polygons)
+  
+  if (verbose) {
+    message("Fetching the header information from the LDC.")
+  }
+  headers_df <- fetch_ldc(data_type = "header")
+  
+  # We know that the header info includes coordinates in NAD83, so we can easily
+  # convert the data frame into an sf object
+  if (verbose) {
+    message("Converting header information into an sf point object.")
+  }
+  headers_sf <- sf::st_as_sf(x = headers_df,
+                             coords = c("Longitude_NAD83",
+                                        "Latitude_NAD83"),
+                             crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs")
+  
+  # We're just after the PrimaryKey values here
+  if (verbose) {
+    message("Finding points that fall within the polygons.")
+  }
+  header_polygons_intersection <- sf::st_intersection(x = headers_sf[, "PrimaryKey"],
+                                                      y = sf::st_transform(polygons[, "unique_id"],
+                                                                           crs = sf::st_crs(headers_sf)))
+  
+  # What if there're no qualifying data????
+  if (nrow(header_polygons_intersection) < 1) {
+    warning("No data were located within the given polygons.")
+    return(NULL)
+  }
+  
+  # If there were points found, snag the PrimaryKey values
+  intersected_primarykeys <- unique(header_polygons_intersection$PrimaryKey)
+  
+  # Grab only the data associated with the PrimaryKey values we've got
+  if (data_type == "header") {
+    headers_df[headers_df$PrimaryKey %in% intersected_primarykeys, ]
+  } else {
+    fetch_ldc(keys = intersected_primarykeys,
+              key_type = "PrimaryKey",
+              data_type = data_type,
+              key_chunk_size = key_chunk_size,
+              timeout = timeout,
+              exact_match = TRUE,
+              verbose = verbose)
+  }
+}
+
 #' A function for coercing data in a data frame into an expected format.
 #' @description Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
 #' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
@@ -309,7 +378,6 @@ fetch_ldc <- function(keys = NULL,
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns The original data frame, \code{data}, either with all variable data types matching the schema from the Landscape Data Commons or with variables that could be coerced to numeric made numeric.
 #' @export
-
 coerce_ldc <- function(data,
                        # lookup_table = NULL,
                        # field_var = NULL,
