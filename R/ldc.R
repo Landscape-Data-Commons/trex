@@ -10,7 +10,7 @@
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller querieswith the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
-#' @param take Numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large, the server will respond with a 500 error. Defaults to \code{10000}.
+#' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large, the server will respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
@@ -20,7 +20,7 @@ fetch_ldc <- function(keys = NULL,
                       data_type,
                       key_chunk_size = 100,
                       timeout = 60,
-                      take = 10000,
+                      take = NULL,
                       exact_match = TRUE,
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
@@ -65,7 +65,13 @@ fetch_ldc <- function(keys = NULL,
   }
   
   if (!is.null(keys) & is.null(key_type)) {
-    stop("Must provide key_type when providing keys")
+    stop("Must provide key_type when providing keys.")
+  }
+  
+  if (!is.null(take)) {
+    if (!is.numeric(take) | length(take) > 1) {
+      stop("take must either be NULL or a single numeric value.")
+    }
   }
   
   # If there are no keys, grab the whole table
@@ -165,7 +171,7 @@ fetch_ldc <- function(keys = NULL,
                         # because the header table doesn't have an rid variable
                         # and we can't use take or cursor options without that
                         
-                        if (data_type == "header") {
+                        if (data_type == "header" | is.null(take)) {
                           if (verbose) {
                             message("Attempting to query LDC with:")
                             message(X)
