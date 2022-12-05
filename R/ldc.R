@@ -10,7 +10,8 @@
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller querieswith the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
-#' @param take Numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. Defaults to \code{10000}.
+#' @param take Numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large, the server will respond with a 500 error. Defaults to \code{10000}.
+#' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @export
@@ -20,6 +21,7 @@ fetch_ldc <- function(keys = NULL,
                       key_chunk_size = 100,
                       timeout = 60,
                       take = 10000,
+                      exact_match = TRUE,
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   base_url <- "https://api.landscapedatacommons.org/api/v1/"
@@ -91,6 +93,16 @@ fetch_ldc <- function(keys = NULL,
                                                                     pattern = ",")))
                                  }))
     
+    if (!exact_match) {
+      if (verbose) {
+        message("Using non-exact matching for the key value.")
+      }
+      if (length(keys_vector) > 1) {
+        warning("There are multiple provided key values. Non-exact matching will only consider the first.")
+      }
+      keys_vector <- keys_vector[1]
+    }
+    
     # Figure out how many chunks to break these into based on the max number of
     # keys in a chunk
     key_chunk_count <- ceiling(length(keys_vector) / key_chunk_size)
@@ -118,12 +130,25 @@ fetch_ldc <- function(keys = NULL,
       }
     }
     
-    queries <- paste0(base_url,
-                      current_table,
-                      "?",
-                      key_type,
-                      "=",
-                      keys_chunks)
+    if (exact_match) {
+      queries <- paste0(base_url,
+                        current_table,
+                        "?",
+                        key_type,
+                        "=",
+                        keys_chunks)
+    } else {
+      # This adds "Like" to the end of the variable name to do a search for a
+      # non-exact match. The object is still called "queries" even though it
+      # had better be a single string instead of a vector.
+      queries <- paste0(base_url,
+                        current_table,
+                        "?",
+                        key_type,
+                        "Like=",
+                        keys_chunks)
+    }
+    
   }
   
   # Use the queries to snag data
@@ -256,7 +281,7 @@ fetch_ldc <- function(keys = NULL,
     return(NULL)
   } else {
     # If there are data and the user gave keys, find which if any are missing
-    if (!is.null(keys)) {
+    if (!is.null(keys) & exact_match) {
       missing_keys <- keys_vector[!(keys_vector %in% data[[key_type]])]
       if (length(missing_keys) > 0) {
         warning(paste0("The following keys were not associated with data: ",
