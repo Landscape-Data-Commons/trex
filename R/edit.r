@@ -147,11 +147,10 @@ fetch_edit_ecosites <- function(mlra = NULL,
 #' Fetch rangeland community composition tables
 #' @rdname fetch_edit
 #' @export fetch_edit_community
-### TO DO : Can you remove the need for the three sequence variables? 
+### TO DO : 
+### Can you remove the need for the three sequence variables? 
 #### Would need to be able to find the entire set of values. Where is that metadata? Could move into a fetch_edit function if so
 ### The only valid key_type here is measurementSystem. Change this to a single variable with two valid inputs (metric and usc)
-### clean up comments and testing code
-### add testing code for all parameters
 ### add the rest of the plant community data types
 fetch_edit_community <- function(mlra,
                                  data_type,
@@ -184,7 +183,6 @@ fetch_edit_community <- function(mlra,
   current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
   
   
-  # Check input classes
   # There are a limited range of queriable parameters
   if(!query_ecosite) {
     valid_key_types <- c("measurementSystem")
@@ -199,6 +197,7 @@ fetch_edit_community <- function(mlra,
     }
   }
   
+  # Check input classes
   if (!(class(keys) %in% c("character", "NULL"))) {
     stop("keys must be a character string or vector of character strings or NULL.")
   }
@@ -224,7 +223,6 @@ fetch_edit_community <- function(mlra,
     stop(paste0("No ecosites retrived with ", key_type, " ", keys))
   }
   
-  
   base_url <- paste0(paste0("https://edit.jornada.nmsu.edu/services/plant-community-tables/esd/", mlra), 
                      "/", ecosites, 
                      "/", land_use_sequence, 
@@ -233,10 +231,7 @@ fetch_edit_community <- function(mlra,
                      "/", current_table
   )
   
-  
-  
   # If querying the ecosite rather than the table, don't make keys_vector
-  
   if (query_ecosite){
     queries <- base_url
   } else if(is.null(keys)) {
@@ -316,17 +311,29 @@ fetch_edit_community <- function(mlra,
                         }
                       })
   
-  data_list <- data_list[!grepl("failed with status", data_list)]
+  names(data_list) <- ecosites
   
-  # Combine all the results of the queries
-  results_dataonly <- do.call(rbind, data_list)
+  # Drop ecological sites that could not be reached, or those with no data
+  data_list_trim <- data_list[!grepl("failed with status", data_list) & 
+                              !sapply(data_list, length) == 0]
   
   # If there aren't data, let the user know
-  if (length(results_dataonly) < 1) {
+  if (length(data_list_trim) < 1) {
     warning("No data retrieved. Confirm that your keys and key_type are correct.")
     return(NULL)
   }
   
+  # Attach ecosite to the tables before flattening them
+  for (i in 1:length(data_list_trim)){
+    data_list_trim[[i]]$id <- names(data_list_trim)[i]
+  }
+  
+  # Combine all the results of the queries
+  results_dataonly <- do.call(rbind, data_list_trim)
+  
+  # Clear the row names
+  row.names(results_dataonly) <- NULL
+ 
   return(unique(results_dataonly))
 }
 
@@ -349,11 +356,10 @@ fetch_edit_description <- function(mlra,
                                            "ecodynamics",
                                            "general",
                                            "interpretations",
-                                           "physiographic",
+                                           "physiography",
                                            "reference",
                                            "soil",
                                            "supporting",
-                                           
                                            "water"),
                              table_name = c("all",
                                             "climatic-features",
@@ -404,7 +410,7 @@ fetch_edit_description <- function(mlra,
     stop("Must provide key_type when providing keys")
   }
   
-  # EDIT structure varies if mlra is specified or not
+  # Pass key and key_type to fetch_edit_ecosites if specified
   if(query_ecosite){
     ecosites <- fetch_edit_ecosites(mlra = mlra, keys = keys, key_type = key_type, return_only_id = TRUE,
                                     key_chunk_size = key_chunk_size, timeout = timeout, verbose = verbose)
@@ -518,12 +524,33 @@ fetch_edit_description <- function(mlra,
     return(NULL)
   }
   
-  return(data_list)
+  # Process data to return data frames with ecosite as row
+
+  if(current_table == "all"){
+    return(data_list)
+  } else {
+    
+    data_list_reshape <- sapply(data_list, function(e){
+      d <- as.data.frame(t((unlist(e))))
+      return(d)
+    })
+
+    # Attach ecosite to the tables before flattening them
+    for (i in 1:length(data_list_reshape)){
+      data_list_reshape[[i]]$id <- names(data_list_reshape)[i]
+    }
+    
+    # Combine all the results of the queries
+    # TO DO : This in base R
+    results_dataonly <- do.call(dplyr::bind_rows, data_list_reshape)
+    
+    return(results_dataonly)
+  }
 }
 
-#'  Fetch edit full descriptions
-#' @rdname fetch_edit
-#' @export fetch_edit_full_descriptions
+#  Fetch edit full descriptions ### DEPRECATED
+# @rdname fetch_edit
+# @export fetch_edit_full_descriptions
 #### TO DO : move this into a fetch_edit_class
 ### add class checks for keys and keys type
 # fetch_edit_full_descriptions <- function(
