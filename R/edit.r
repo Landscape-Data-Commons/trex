@@ -521,9 +521,6 @@ fetch_edit_description <- function(mlra,
   return(data_list)
 }
 
-test <- fetch_edit_description("001X", "climate", verbose = T)
-test$AX001X02X003$narratives
-
 #'  Fetch edit full descriptions
 #' @rdname fetch_edit
 #' @export fetch_edit_full_descriptions
