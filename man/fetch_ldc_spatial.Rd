@@ -2,7 +2,7 @@
 % Please edit documentation in R/ldc.R
 \name{fetch_ldc_spatial}
 \alias{fetch_ldc_spatial}
-\title{A function for fetching data from the Landscape Data Commons using spatial constraints}
+\title{Fetching data from the Landscape Data Commons using spatial constraints}
 \usage{
 fetch_ldc_spatial(
   polygons,
@@ -16,7 +16,7 @@ fetch_ldc_spatial(
 \arguments{
 \item{polygons}{Polygon sf object. The polygon or polygons describing the area to retrieve data from. Only records from sampling locations falling within this area will be returned.}
 
-\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \doce{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.}
+\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.}
 
 \item{key_chunk_size}{Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
 
@@ -30,5 +30,13 @@ fetch_ldc_spatial(
 A data frame of records from the requested \code{data_type} which came from locations within \code{polygons}.
 }
 \description{
-A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC. Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{fetch_ldc()} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
+A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC. Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{\link[=fetch_ldc]{fetch_ldc()}} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
+}
+\examples{
+To retrieve all LPI records for sampling locations found within a given set of polygons provided as an sf object
+fetch_ldc_spatial(polygons = polygons_sf, data_type = "lpi")
+}
+\seealso{
+* To query for data by key values, use \code{\link[=fetch_ldc]{fetch_ldc()}}.
+* To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
 }

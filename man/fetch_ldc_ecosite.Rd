@@ -2,7 +2,7 @@
 % Please edit documentation in R/ldc.R
 \name{fetch_ldc_ecosite}
 \alias{fetch_ldc_ecosite}
-\title{A function for fetching data from the Landscape Data Commons via API query using ecological site IDs}
+\title{Fetching data from the Landscape Data Commons via API query using ecological site IDs}
 \usage{
 fetch_ldc_ecosite(
   keys,
@@ -17,7 +17,7 @@ fetch_ldc_ecosite(
 \arguments{
 \item{keys}{Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.}
 
-\item{data_type}{Character string. The type of data to query. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.}
+\item{data_type}{Character string. The type of data to query. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.}
 
 \item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
 
@@ -33,5 +33,13 @@ fetch_ldc_ecosite(
 A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 }
 \description{
-This is a wrapper for \code{fetch_ldc()} which streamlines retrieving data by ecological site IDs.
+This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs.
+}
+\examples{
+# To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
+fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")
+}
+\seealso{
+* To query for data by key values, use \code{\link[=fetch_ldc]{fetch_ldc()}}.
+* To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
 }

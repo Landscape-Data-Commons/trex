@@ -2,7 +2,7 @@
 % Please edit documentation in R/ldc.R
 \name{fetch_ldc}
 \alias{fetch_ldc}
-\title{A function for fetching data from the Landscape Data Commons via API query}
+\title{Fetching data from the Landscape Data Commons via API query}
 \usage{
 fetch_ldc(
   keys = NULL,
@@ -20,7 +20,7 @@ fetch_ldc(
 
 \item{key_type}{Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.}
 
-\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap}, \code{'header}, \code{'height}, \code{'lpi}, \code{'soilstability}, \code{'speciesinventory}, \code{'indicators}, \code{'species}, \code{'dustdeposition}, \code{'horizontalflux}, and \code{'schema'}.}
+\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.}
 
 \item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
 
@@ -36,5 +36,15 @@ fetch_ldc(
 A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 }
 \description{
-A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}.
+A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
+}
+\examples{
+# To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
+fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
+# To retrieve all LPI data collected as part of projects that include "Taos" in the project name
+fetch_ldc(keys = "Taos", key_type = "ProjectName", data_type = "lpi", exact_match = FALSE)
+}
+\seealso{
+* To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
+* To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
 }
