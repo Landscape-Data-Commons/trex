@@ -526,24 +526,35 @@ fetch_edit_description <- function(mlra,
   
   # Process data to return data frames with ecosite as row
 
-  if(current_table == "all"){
+  if(data_type == "all"){
     return(data_list)
   } else {
     
     data_list_reshape <- sapply(data_list, function(e){
-      d <- as.data.frame(t((unlist(e))))
+      d <- as.data.frame(t(unlist(e)))
       return(d)
     })
-
-    # Attach ecosite to the tables before flattening them
-    for (i in 1:length(data_list_reshape)){
-      data_list_reshape[[i]]$id <- names(data_list_reshape)[i]
+    
+    # some data types require different reshaping
+    if(data_type %in% c("water", "ecodynamics", "reference")){
+      results_dataonly <- as.data.frame(t(data_list_reshape))
+      results_dataonly$id <- rownames(results_dataonly)
+      rownames(results_dataonly) <- NULL
+    } else {
+      # Attach ecosite to the tables before flattening them
+      for (i in 1:length(data_list_reshape)){
+        data_list_reshape[[i]]$id <- names(data_list_reshape)[i]
+      }
+      
+      # Combine all the results of the queries
+      # TO DO : This in base R
+      results_dataonly <- do.call(dplyr::bind_rows, data_list_reshape)
     }
     
-    # Combine all the results of the queries
-    # TO DO : This in base R
-    results_dataonly <- do.call(dplyr::bind_rows, data_list_reshape)
-    
+    # Reoder output so that ecosite ID is on the far left
+    colorder <- c("id", colnames(results_dataonly)[colnames(results_dataonly) != "id"])
+    results_dataonly[,colorder]
+
     return(results_dataonly)
   }
 }
