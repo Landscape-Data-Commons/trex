@@ -5,7 +5,7 @@
 # dplyr
 
 #' Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA is provided
-#' @description 
+#' @description Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA is provided
 #' @param mlra Character string or vector of character strings. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned.
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
@@ -167,10 +167,14 @@ fetch_edit_ecosites <- function(mlra = NULL,
 }
 
 #' Fetch ecosystem state tables
-#' @description 
-#' @param 
-#' @returns
-#' @examples 
+#' @description placeholder
+#' @param mlra placeholder
+#' @param keys placeholder
+#' @param key_type placeholder
+#' @param timeout placeholder
+#' @param verbose placeholder
+#' @returns placeholder
+#' @examples placeholder 
 #' 
 #' @rdname fetch_edit
 #' @export fetch_edit_states
@@ -269,21 +273,21 @@ fetch_edit_states <- function(mlra,
 }
 
 #' Fetch rangeland community composition tables
-#' @description 
+#' @description placeholder
 #' @param mlra Character string or vector of character strings. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned.
-#' @param data_type
+#' @param data_type placeholder
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
-#' @param query_ecosite
-#' @param ecosystem_state_sequence
-#' @param land_use_sequence
-#' @param community_sequence
+#' @param query_ecosite placeholder
+#' @param ecosystem_state_sequence placeholder
+#' @param land_use_sequence placeholder
+#' @param community_sequence placeholder
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
-#' @returns 
+#' @returns  placeholder
 #' 
-#' @examples 
+#' @examples placeholder
 #' 
 #' @rdname fetch_edit
 #' @export fetch_edit_community
@@ -491,18 +495,18 @@ fetch_edit_community <- function(mlra,
 }
 
 #' Fetch EDIT descriptions 
-#' @description 
+#' @description placeholder
 #' @param mlra Character string or vector of character strings. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned.
-#' @param data_type
+#' @param data_type placeholder
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 
-#' @returns 
+#' @returns placeholder
 #' 
-#' @examples 
+#' @examples placeholder
 #' 
 #' @rdname fetch_edit
 #' @export fetch_edit_description

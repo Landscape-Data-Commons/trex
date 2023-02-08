@@ -2,6 +2,7 @@
 % Please edit documentation in R/edit.r
 \name{fetch_edit_ecosites}
 \alias{fetch_edit_ecosites}
+\alias{fetch_edit_states}
 \alias{fetch_edit_community}
 \alias{fetch_edit_description}
 \title{Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA is provided}
@@ -10,7 +11,15 @@ fetch_edit_ecosites(
   mlra = NULL,
   keys = NULL,
   key_type = NULL,
-  return_only_id = F,
+  key_chunk_size = 100,
+  timeout = 60,
+  verbose = F
+)
+
+fetch_edit_states(
+  mlra,
+  keys = NULL,
+  key_type = NULL,
   key_chunk_size = 100,
   timeout = 60,
   verbose = F
@@ -21,10 +30,9 @@ fetch_edit_community(
   data_type,
   keys = NULL,
   key_type = NULL,
-  query_ecosite = TRUE,
-  ecosystem_state_sequence = 1,
-  land_use_sequence = 1,
-  community_sequence = 1,
+  ecosystem_state_sequence = NULL,
+  land_use_sequence = NULL,
+  community_sequence = NULL,
   key_chunk_size = 100,
   timeout = 60,
   verbose = F
@@ -35,16 +43,68 @@ fetch_edit_description(
   data_type,
   keys = NULL,
   key_type = NULL,
-  query_ecosite = TRUE,
   key_chunk_size = 100,
   timeout = 60,
   verbose = F
 )
 }
+\arguments{
+\item{mlra}{Character string or vector of character strings. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned.}
+
+\item{keys}{Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.}
+
+\item{key_type}{Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}}
+
+\item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
+
+\item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.}
+
+\item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
+
+\item{data_type}{placeholder}
+
+\item{ecosystem_state_sequence}{placeholder}
+
+\item{land_use_sequence}{placeholder}
+
+\item{community_sequence}{placeholder}
+
+\item{query_ecosite}{placeholder}
+}
+\value{
+A data frame of ecological site ID records meeting the parameters defined by \code{keys} and \code{key_type}.
+
+placeholder
+
+placeholder
+
+placeholder
+}
 \description{
 Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA is provided
 
-Fetch rangeland community composition tables
+placeholder
 
-Fetch EDIT descriptions
+placeholder
+
+placeholder
+}
+\examples{
+# To retrieve all ecological sites in EDIT
+fetch_edit_ecosites(mlra = NULL)
+# To retrieve all ecological sites from MLRA 039X
+fetch_edit_ecosites(mlra = "039X")
+# To retrieve all ecological sites from MLRAs 039X and 040X
+fetch_edit_ecosites(mlra = c("039X", "040X"))
+# To retrieve ecological sites that exist with slope between 15 and 30\%, from MLRA 039X. Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
+fetch_edit_ecosites(mlra = "039X", keys = "15:30", key_type = "slope")
+# To retrieve ecological sites from hill landforms, from MLRA 039X
+fetch_edit_ecosites(mlra = "039X", keys = "mountain", key_type = "landform")
+# To retrieve ecological sites that exist at 4500 to 5000 feet of elevation. Note: this includes all sites whose elevation range overlaps with the given range. For example, this will return sites with elevation range 4600-7500 feet.
+placeholder 
+
+placeholder
+
+placeholder
+
 }
