@@ -204,8 +204,14 @@ fetch_ldc <- function(keys = NULL,
                           
                           # What if there's an error????
                           if (httr::http_error(response)) {
-                            stop(paste0("Query failed with status ",
-                                        response$status_code))
+                            if (response$status_code == 500) {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code,
+                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+                            } else {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code))
+                            }
                           }
                           
                           # Grab only the data portion
@@ -237,8 +243,14 @@ fetch_ldc <- function(keys = NULL,
                           
                           # What if there's an error????
                           if (httr::http_error(response)) {
-                            stop(paste0("Query failed with status ",
-                                        response$status_code))
+                            if (response$status_code == 500) {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code,
+                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+                            } else {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code))
+                            }
                           }
                           
                           # Grab only the data portion
