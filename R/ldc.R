@@ -107,6 +107,17 @@ fetch_ldc <- function(keys = NULL,
                                    trimws(unlist(stringr::str_split(string = X,
                                                                     pattern = ",")))
                                  }))
+    # OKAY! So it turns out that it's not impossible for keys to contain
+    # ampersands which will result in malformed API queries, so we'll replace
+    # them with the unicode reference %26
+    keys_vector_original <- keys_vector
+    keys_vector <- gsub(x = keys_vector,
+                 pattern = "[&]",
+                 replacement = "%26")
+    
+    if (verbose & !identical(keys_vector_original, keys_vector)) {
+      warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
+    }
     
     if (!exact_match) {
       if (verbose) {
@@ -297,7 +308,10 @@ fetch_ldc <- function(keys = NULL,
   } else {
     # If there are data and the user gave keys, find which if any are missing
     if (!is.null(keys) & exact_match) {
-      missing_keys <- keys_vector[!(keys_vector %in% data[[key_type]])]
+      # Note that we're using keys_vector_original because even if we made
+      # alterations to keys_vector, the actual retrieved keys should match the
+      # original values despite substituting unicode references for illegal characters
+      missing_keys <- keys_vector_original[!(keys_vector_original %in% data[[key_type]])]
       if (length(missing_keys) > 0) {
         warning(paste0("The following keys were not associated with data: ",
                        paste(missing_keys,
