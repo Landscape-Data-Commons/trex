@@ -185,7 +185,8 @@ fetch_ldc <- function(keys = NULL,
                       timeout = timeout,
                       take = take,
                       user_agent = user_agent,
-                      FUN = function(X, data_type, take, timeout, user_agent){
+                      verbose = verbose,
+                      FUN = function(X, data_type, take, timeout, user_agent, verbose){
                         
                         # We handle things differently if the data type is header
                         # because the header table doesn't have an rid variable
@@ -229,6 +230,10 @@ fetch_ldc <- function(keys = NULL,
                           # and then after that we'll keep trying with the last
                           # rid value + 1 as the cursor until we get an empty
                           # response
+                          if (verbose) {
+                            message(paste0("Retrieving records in chunks of ", take))
+                          }
+                          
                           query <- paste0(X, "&take=", take)
                           
                           if (verbose) {
