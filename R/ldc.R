@@ -19,9 +19,10 @@
 #' * To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
 #' @examples
 #' # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
-#' fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
-#' # To retrieve all LPI data collected as part of projects that include "Taos" in the project name
-#' fetch_ldc(keys = "Taos", key_type = "ProjectName", data_type = "lpi", exact_match = FALSE)
+#' headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
+#' # To retrieve all LPI data collected in ecological sites in the 036X Major Land Resource Area (MLRA)
+#' relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data_type = "header", exact_match = FALSE)
+#' lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
 #' @export
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
