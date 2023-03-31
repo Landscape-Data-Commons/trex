@@ -641,7 +641,16 @@ fetch_edit_community <- function(mlra,
     return(NULL)
   }
   
-
+  # Ensure class consistency
+  data_list_trim <- 
+    sapply(data_list_trim, function(d){
+      d$coverLow <- as.numeric(d$coverLow)
+      d$coverHigh <- as.numeric(d$coverHigh)
+      d$canopyBottom <- as.numeric(d$canopyBottom)
+      d$canopyTop <- as.numeric(d$canopyTop)
+      return(d)
+    })
+  
   # Combine all the results of the queries
   results_dataonly <- dplyr::bind_rows(data_list_trim)
 
