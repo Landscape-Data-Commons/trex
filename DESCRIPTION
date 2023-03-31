@@ -19,6 +19,6 @@ Imports:
     rlang,
     utils,
     stats
-Suggests: 
+Suggests: knitr, rmarkdown
 Depends: R (>= 2.10)
 VignetteBuilder: knitr
