@@ -57,7 +57,7 @@ lpi_data_multiple <- fetch_ldc(keys = c("20198113201104B2",
                                data_type = "lpi")
 ```
 
-If you find that `fetch_ldc()` is returning errors or unexpected results, try using `verbose = TRUE` which will force the function to report what it's doing at each step, including the full queries that it's sending to the LDC server. This can be indispensible for troubleshooting.
+If you find that `fetch_ldc()` is returning errors or unexpected results, try using `verbose = TRUE` which will force the function to report what it's doing at each step, including the full queries that it's sending to the LDC server. This can be indispensable for troubleshooting.
 
 ### Advanced use
 
