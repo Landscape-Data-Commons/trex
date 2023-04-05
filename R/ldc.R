@@ -79,7 +79,7 @@ fetch_ldc <- function(keys = NULL,
                                             "dataHorizontalFlux",
                                             "aerosummary"))
   if (!(data_type %in% valid_tables$data_type)) {
-    stop(paste0("data_type must be one of the following character strings: ",
+    stop(paste0("data_type must be one of the following character strings (some are aliases of each other): ",
                 paste(valid_tables$data_type,
                       collapse = ", "),
                 "."))
