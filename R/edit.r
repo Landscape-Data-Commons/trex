@@ -169,20 +169,20 @@ fetch_edit_ecosites <- function(mlra,
 #' Fetch EDIT descriptions 
 #' @description Fetch EDIT text descriptions of ecological site data
 #' @param mlra Character string or vector of character strings. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned.
-#' @param data_type Restricted character string. The shorthand name of the type of data to retrieve. Must be one of "all", "climate", "ecodynamics", "general", "interpretations", "physiography", "reference", "soil", "supporting", "water", or "states"
+#' @param data_type Restricted character string. The shorthand name of the type of data to retrieve. Must be one of climate", "ecodynamics", "general", "interpretations", "physiography", "reference", "soil", "supporting", "water", or "states"
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 
-#' @returns A data frame or list of data frames (if data_type = "all") with the requested data tables. 
+#' @returns A data frame with the requested EDIT data. 
 #' 
 #' @examples 
-#' # To retrieve full ecological site descriptions from MLRA 001X
-#' fetch_edit_description(mlra = "001X", data_type = "all")
-#' # To retrieve full ecological site descriptions from MLRAs 001X and 002X
-#' fetch_edit_description(mlra = c("001X", "002X"), data_type = "all")
+#' # To retrieve general ecological site descriptions general MLRA 001X
+#' fetch_edit_description(mlra = "001X", data_type = "general")
+#' # To retrieve general ecological site descriptions from MLRAs 001X and 002X
+#' fetch_edit_description(mlra = c("001X", "002X"), data_type = "general")
 #' # To retrieve climatic feature descriptions from all ecological sites in MLRAs 001X and 002X
 #' fetch_edit_description(mlra = c("001X", "002X"), data_type = "climate")
 #' # To retrieve climatic feature descriptions from ecological sites that exist with slope between 15 and 30%, from MLRAs 001X and 002X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70%.
@@ -202,8 +202,7 @@ fetch_edit_description <- function(mlra,
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check data_type
-  valid_tables <- data.frame(data_type = c("all",
-                                           "climate",
+  valid_tables <- data.frame(data_type = c("climate",
                                            "ecodynamics",
                                            "general",
                                            "interpretations",
@@ -213,8 +212,7 @@ fetch_edit_description <- function(mlra,
                                            "supporting",
                                            "water",
                                            "states"),
-                             table_name = c("all",
-                                            "climatic-features",
+                             table_name = c("climatic-features",
                                             "ecological-dynamics",
                                             "general-information",
                                             "interpretations",
@@ -258,23 +256,18 @@ fetch_edit_description <- function(mlra,
     stop(paste0("No ecosites retrived with ", key_type, " ", keys))
   }
   
-  if(current_table == "all"){
-    base_url <- paste0("https://edit.jornada.nmsu.edu/services/descriptions/esd/",
-                       ecosites_df$urlsuffix,
-                       ".json")  
-  } else if(current_table == "states") {
+  if(current_table == "states") {
     base_url <- paste0("https://edit.jornada.nmsu.edu/services/models/esd/", 
                        ecosites_df$urlsuffix,
                        "/states.json")
     
-  }  else {
+  } else {
     base_url <- paste0("https://edit.jornada.nmsu.edu/services/descriptions/esd/",
                        ecosites_df$urlsuffix,
                        "/", 
                        current_table,
                        ".json")  
   }
-  
   
   if(is.null(keys)) {
     # If there are no keys, grab the whole table
@@ -363,64 +356,59 @@ fetch_edit_description <- function(mlra,
     return(NULL)
   }
   
-  # Process data to return data frames with ecosite as row
-  if(data_type == "all"){
-    return(data_list)
-  } else {
+  ### Process data to return data frames with ecosite as row
+  # some data types require different reshaping
+  if(data_type %in% c("water", "ecodynamics", "reference", "interpretations", "physiography", "soil")){
     
-    # some data types require different reshaping
-    if(data_type %in% c("water", "ecodynamics", "reference", "climate")){
-      
-      data_list_reshape <- sapply(data_list, function(e){
-        d <- as.data.frame(t(unlist(e)))
-        return(d)
-      })
-      
-      results_dataonly <- as.data.frame(t(data_list_reshape))
-      results_dataonly$id <- ecosites_df$id
-      results_dataonly$mlra <- ecosites_df$geoUnit
-      results_dataonly$ecositeName <- ecosites_df$name
-      
-      # does this need a bind_rows?
-
-      rownames(results_dataonly) <- NULL
-      
-      
-      
-    } else if(data_type == "states"){
-      for (i in 1:length(data_list)){
-        data_list[[i]]$id <- ecosites_df$id[i]
-        data_list[[i]]$mlra <- ecosites_df$geoUnit[i]
-        data_list[[i]]$ecositeName <- ecosites_df$name[i]
-      }
-      
-      results_dataonly <- dplyr::bind_rows(data_list)
-      
-      # specify that if no data was retrieved for a given ecosite, there is no state data for that site
-      results_dataonly[is.na(results_dataonly$type), "type"] <- "no state or plant community data for this site"
-      
-    } else {
-      data_list_reshape <- sapply(data_list, function(e){
-        d <- as.data.frame(t(unlist(e)))
-        return(d)
-      })
-      # Attach ecosite to the tables before flattening them
-      for (i in 1:length(data_list_reshape)){
-        data_list_reshape[[i]]$id <- ecosites_df$id[i]
-        data_list_reshape[[i]]$mlra <- ecosites_df$geoUnit[i]
-        data_list_reshape[[i]]$ecositeName <- ecosites_df$name[i]
-      }
-      
-      # Combine all the results of the queries
-      results_dataonly <- dplyr::bind_rows(data_list_reshape)
+    data_list_reshape <- sapply(data_list, function(e){
+      d <- as.data.frame(t(unlist(e)))
+      return(d)
+    })
+    
+    results_dataonly <- as.data.frame(t(data_list_reshape))
+    row.names(results_dataonly) <- NULL
+    results_dataonly$id <- ecosites_df$id
+    results_dataonly$mlra <- ecosites_df$geoUnit
+    results_dataonly$ecositeName <- ecosites_df$name
+    
+    # does this need a bind_rows?
+    
+    rownames(results_dataonly) <- NULL
+    
+  } else if(data_type == "states"){
+    for (i in 1:length(data_list)){
+      data_list[[i]]$id <- ecosites_df$id[i]
+      data_list[[i]]$mlra <- ecosites_df$geoUnit[i]
+      data_list[[i]]$ecositeName <- ecosites_df$name[i]
     }
     
-    # Reorder output so that ecosite ID and mlra are on the far left
-    colorder <- c("id", "mlra", colnames(results_dataonly)[!colnames(results_dataonly) %in% c("id", "mlra")])
-    results_dataonly <- results_dataonly[,colorder]
+    results_dataonly <- dplyr::bind_rows(data_list)
     
-    return(results_dataonly)
+    # specify that if no data was retrieved for a given ecosite, there is no state data for that site
+    results_dataonly[is.na(results_dataonly$type), "type"] <- "No state or plant community data for this site"
+    
+  } else {
+    data_list_reshape <- sapply(data_list, function(e){
+      d <- as.data.frame(t(unlist(e)))
+      return(d)
+    })
+    # Attach ecosite to the tables before flattening them
+    for (i in 1:length(data_list_reshape)){
+      data_list_reshape[[i]]$id <- ecosites_df$id[i]
+      data_list_reshape[[i]]$mlra <- ecosites_df$geoUnit[i]
+      data_list_reshape[[i]]$ecositeName <- ecosites_df$name[i]
+    }
+    
+    # Combine all the results of the queries
+    results_dataonly <- dplyr::bind_rows(data_list_reshape)
   }
+  
+  # Reorder output so that ecosite ID and mlra are on the far left
+  colorder <- c("id", "mlra", colnames(results_dataonly)[!colnames(results_dataonly) %in% c("id", "mlra")])
+  results_dataonly <- results_dataonly[,colorder]
+  
+  return(results_dataonly)
+  
 }
 
 
@@ -621,7 +609,7 @@ fetch_edit_community <- function(mlra,
                           return(content_df[[2]])
                         }
                       })
-
+  
   data_list_allvars <- data_list
   
   # Attach ecosite to the tables before flattening or trimming them
@@ -632,7 +620,7 @@ fetch_edit_community <- function(mlra,
     data_list_allvars[[i]]$state <- communityparams$state[i]
     data_list_allvars[[i]]$community <- communityparams$community[i]
     data_list_allvars[[i]]$ecositeName <- communityparams$ecositeName[i]
-
+    
     ### Handle cases with missing data
     if(is.null(nrow(data_list_allvars[[i]]))){
       data_list_allvars[[i]] <- as.data.frame((data_list_allvars[[i]]))
@@ -683,7 +671,7 @@ fetch_edit_community <- function(mlra,
       }
     }
   }
-
+  
   # Drop ecological sites that could not be reached, or those with no data
   data_list_trim <- data_list_allvars[!grepl("failed with status", data_list_allvars)]
   
@@ -695,16 +683,16 @@ fetch_edit_community <- function(mlra,
       data_list_dropna[[1+length(data_list_dropna)]] <- data_list_trim[i][[1]]
     }
   }
-
+  
   # If there aren't data, let the user know
   if (length(data_list_dropna) < 1) {
     warning("No data retrieved. Confirm that your keys and key_type are correct.")
     return(NULL)
   }
-
+  
   # Combine all the results of the queries
   results_dataonly <- dplyr::bind_rows(data_list_dropna)
-
+  
   # Clear the row names
   row.names(results_dataonly) <- NULL
   

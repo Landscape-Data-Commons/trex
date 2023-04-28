@@ -62,7 +62,7 @@ fetch_edit_community(
 \value{
 A data frame of ecological site ID records meeting the parameters defined by \code{keys} and \code{key_type}.
 
-A data frame or list of data frames (if data_type = "all") with the requested data tables.
+A data frame with the requested EDIT data.
 
 A data frame containing rangeland community composition data.
 }
@@ -86,10 +86,10 @@ fetch_edit_ecosites(mlra = "039X", keys = "15:30", key_type = "slope")
 fetch_edit_ecosites(mlra = "039X", keys = "mountain", key_type = "landform")
 # To retrieve ecological sites that exist at 4500 to 5000 feet of elevation. Note: this includes all sites whose elevation range overlaps with the given range. For example, this will return sites with elevation range 4600-7500 feet.
 fetch_edit_ecosites(mlra = "039X", keys = "4500:5000", key_type = "elevation")
-# To retrieve full ecological site descriptions from MLRA 001X
-fetch_edit_description(mlra = "001X", data_type = "all")
-# To retrieve full ecological site descriptions from MLRAs 001X and 002X
-fetch_edit_description(mlra = c("001X", "002X"), data_type = "all")
+# To retrieve general ecological site descriptions general MLRA 001X
+fetch_edit_description(mlra = "001X", data_type = "general")
+# To retrieve general ecological site descriptions from MLRAs 001X and 002X
+fetch_edit_description(mlra = c("001X", "002X"), data_type = "general")
 # To retrieve climatic feature descriptions from all ecological sites in MLRAs 001X and 002X
 fetch_edit_description(mlra = c("001X", "002X"), data_type = "climate")
 # To retrieve climatic feature descriptions from ecological sites that exist with slope between 15 and 30\%, from MLRAs 001X and 002X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
