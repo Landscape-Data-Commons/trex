@@ -412,7 +412,7 @@ fetch_edit_description <- function(mlra,
       }
       
       # Combine all the results of the queries
-      results_dataonly <- do.call(dplyr::bind_rows, data_list_reshape)
+      results_dataonly <- dplyr::bind_rows(data_list_reshape)
     }
     
     # Reorder output so that ecosite ID and mlra are on the far left
@@ -505,7 +505,7 @@ fetch_edit_community <- function(mlra,
     states <- fetch_edit_description(mlra = mlra, data_type = "states", keys = keys, key_type = key_type, key_chunk_size = key_chunk_size, 
                                      timeout = timeout, verbose = verbose)
     
-    communityparams <- subset(states, !is.na(landUse) & !is.na(state) & !is.na(community))[,1:8]
+    communityparams <- subset(states, !is.na(landUse) & !is.na(state) & !is.na(community))
     
     # If a sequence variable is specified, limit community params to only that subset
     if(!is.null(ecosystem_state_sequence)){
@@ -541,6 +541,7 @@ fetch_edit_community <- function(mlra,
     communityparams$landUse <- land_use_sequence
     communityparams$state <- ecosystem_state_sequence
     communityparams$community <- community_sequence
+    communityparams$ecositeName <- communityparams$name
   }
   
   # If querying the ecosite rather than the table, don't make keys_vector
@@ -620,30 +621,89 @@ fetch_edit_community <- function(mlra,
                           return(content_df[[2]])
                         }
                       })
+
+  data_list_allvars <- data_list
+  
   # Attach ecosite to the tables before flattening or trimming them
-  for (i in 1:length(data_list)){
-    data_list[[i]]$id <- communityparams$id[i]
-    data_list[[i]]$mlra <- communityparams$mlra[i]
-    data_list[[i]]$landUse <- communityparams$landUse[i]
-    data_list[[i]]$state <- communityparams$state[i]
-    data_list[[i]]$community <- communityparams$community[i]
-    data_list[[i]]$ecositeName <- communityparams$name[i]
+  for (i in 1:length(data_list_allvars)){
+    data_list_allvars[[i]]$id <- communityparams$id[i]
+    data_list_allvars[[i]]$mlra <- communityparams$mlra[i]
+    data_list_allvars[[i]]$landUse <- communityparams$landUse[i]
+    data_list_allvars[[i]]$state <- communityparams$state[i]
+    data_list_allvars[[i]]$community <- communityparams$community[i]
+    data_list_allvars[[i]]$ecositeName <- communityparams$ecositeName[i]
+
+    ### Handle cases with missing data
+    if(is.null(nrow(data_list_allvars[[i]]))){
+      data_list_allvars[[i]] <- as.data.frame((data_list_allvars[[i]]))
+    }
+    
+    if(!"coverLow" %in% colnames(data_list_allvars[[i]])){
+      data_list_allvars[[i]]$coverLow <- NA
+    } else {
+      data_list_allvars[[i]]$coverLow <- as.numeric(data_list_allvars[[i]]$coverLow)
+    }
+    if(!"coverHigh" %in% colnames(data_list_allvars[[i]])){
+      data_list_allvars[[i]]$coverHigh <- NA
+    } else {
+      data_list_allvars[[i]]$coverHigh <- as.numeric(data_list_allvars[[i]]$coverHigh)
+    }
+    if(!"canopyBottom" %in% colnames(data_list_allvars[[i]])){
+      data_list_allvars[[i]]$canopyBottom <- NA
+    } else {
+      data_list_allvars[[i]]$canopyBottom <- as.numeric(data_list_allvars[[i]]$canopyBottom)
+    }
+    if(!"canopyTop" %in% colnames(data_list_allvars[[i]])){
+      data_list_allvars[[i]]$canopyTop <- NA
+    } else {
+      data_list_allvars[[i]]$canopyTop <- as.numeric(data_list_allvars[[i]]$canopyTop)
+    }
+    
+    # overstory data contains 4 more columns
+    if(data_type %in% c("overstory")){
+      if(!"diameterLow" %in% colnames(data_list_allvars[[i]])){
+        data_list_allvars[[i]]$diameterLow <- NA
+      } else {
+        data_list_allvars[[i]]$diameterLow <- as.numeric(data_list_allvars[[i]]$diameterLow)
+      }
+      if(!"diameterHigh" %in% colnames(data_list_allvars[[i]])){
+        data_list_allvars[[i]]$diameterHigh <- NA
+      } else {
+        data_list_allvars[[i]]$diameterHigh <- as.numeric(data_list_allvars[[i]]$diameterHigh)
+      }
+      if(!"basalAreaLow" %in% colnames(data_list_allvars[[i]])){
+        data_list_allvars[[i]]$basalAreaLow <- NA
+      } else {
+        data_list_allvars[[i]]$basalAreaLow <- as.numeric(data_list_allvars[[i]]$basalAreaLow)
+      }
+      if(!"basalAreaHigh" %in% colnames(data_list_allvars[[i]])){
+        data_list_allvars[[i]]$basalAreaHigh <- NA
+      } else {
+        data_list_allvars[[i]]$basalAreaHigh <- as.numeric(data_list_allvars[[i]]$basalAreaHigh)
+      }
+    }
   }
-  
+
   # Drop ecological sites that could not be reached, or those with no data
-  data_list_trim <- data_list[!grepl("failed with status", data_list) & 
-                                # !sapply(data_list, length) == 0]
-                                !sapply(data_list, length) == 6]
+  data_list_trim <- data_list_allvars[!grepl("failed with status", data_list_allvars)]
   
+  # Remove sites with no id or mlra attached, they are orphan data
+  data_list_dropna <- list()
+  
+  for(i in 1:length(data_list_trim)){
+    if(!all(is.na(data_list_trim[[i]]$id))){
+      data_list_dropna[[1+length(data_list_dropna)]] <- data_list_trim[i][[1]]
+    }
+  }
+
   # If there aren't data, let the user know
-  if (length(data_list_trim) < 1) {
+  if (length(data_list_dropna) < 1) {
     warning("No data retrieved. Confirm that your keys and key_type are correct.")
     return(NULL)
   }
-  
 
   # Combine all the results of the queries
-  results_dataonly <- dplyr::bind_rows(data_list_trim)
+  results_dataonly <- dplyr::bind_rows(data_list_dropna)
 
   # Clear the row names
   row.names(results_dataonly) <- NULL
