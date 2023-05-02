@@ -1,0 +1,169 @@
+---
+title: "Using Landscape Data Commons functions"
+author: "Nelson Stauffer"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using Landscape Data Commons functions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+The Landscape Data Commons (LDC) is a repository of publicly-available ecological data sets. These are accessible via API and `trex` contains functions to help download the data without needing to write API calls yourself. The core function is `fetch_ldc()` and there are two additional functions for common use-cases, `fetch_ldc_spatial()` and `fetch_ldc_ecosite()`.
+
+## fetch_ldc()
+
+This is the main function for accessing the LDC API and is used by both `fetch_ldc_spatial()` and `fetch_ldc_ecosite()`. It takes the user-provided parameters to request data via the API to automatically build the relevant API call(s) and returns the results of the call(s). By default, the function will silently create however many API calls it needs to to retrieve the requested data, but you can always use the argument `verbose = TRUE` to see what steps it's taking.
+
+### Basic use
+
+The minimum information the function requires to work is the `data_type` argument which corresponds to which table in the LDC the data are being requested from. If you specify a data type and nothing else, then the function will attempt to retrieve *all* data associated with the requested data type. This is not recommended for most data types because the number of records in tables of raw data can be very high. However, it would not be inappropriate to use with `data_type = "header"` or `data_type = "indicators"` because these two tables contain "only" one entry for each sampling event, being the metadata and calculated ecological indicators for each sampling event, respectively.
+
+```{r, eval=FALSE}
+# This retrieves all header information from the LDC
+# Here verbose = TRUE so that the function will report back on what it's doing
+# at each step
+all_ldc_headers <- fetch_ldc(data_type = "header",
+                             verbose = TRUE)
+
+# To retrieve all calculated ecological indicator values from the LDC
+all_ldc_indicators <- fetch_ldc(data_type = "indicators")
+```
+
+When retrieving raw data, as from line-point intercept or canopy gap intercept, it is recommended that you also use the arguments `keys` and `key_type`. Using `key_type` lets you specify a variable/column in the table called for by `data_type`. You use `keys` to specify which value or values in particular in that variable to filter to. Every table in the LDC has different variables available (although some, like PrimaryKey, are found in more than one), so consult [the documentation](https://api.landscapedatacommons.org/api-docs) if you're uncertain which you can use for `key_type` for a given table.
+
+The "easiest" variable to use is PrimaryKey because it's the one that ties all records from a sampling event together both within and across tables. That does require knowing what PrimaryKey values to use for `keys` though, so consider using `fetch_ldc_spatial()` or `fetch_ldc_ecosite()` (see sections below) to retrieve records without having to know any PrimaryKey values.
+
+```{r, eval=FALSE}
+# To retrieve all line-point intercept records associated with the sampling
+# event with the PrimaryKey value of 16060107170093802016-09-01
+lpi_data_single <- fetch_ldc(keys = "16060107170093802016-09-01",
+                             key_type = "PrimaryKey",
+                             data_type = "lpi")
+
+# To retrieve all line-point intercept records associated with the sampling
+# event with the PrimaryKey value of 20198113201104B2, 2019885200311B1, and
+# 2019885200311B2
+lpi_data_multiple <- fetch_ldc(keys = c("20198113201104B2",
+                                        "2019885200311B1",
+                                        "2019885200311B2"),
+                               key_type = "PrimaryKey",
+                               data_type = "lpi")
+```
+
+If you find that `fetch_ldc()` is returning errors or unexpected results, try using `verbose = TRUE` which will force the function to report what it's doing at each step, including the full queries that it's sending to the LDC server. This can be indispensable for troubleshooting.
+
+### Advanced use
+
+There are additional arguments that you can supply to `fetch_ldc()` to help, especially if your queries are returning errors from the server.
+
+#### key_chunk_size
+
+This argument determines how many of the provided keys will be used for a single API query. There's a character count limit for queries and so it's possible that a requesting data via a single query could exceed that limit. By setting `key_chunk_size`, you can control how many keys will be used in a query at a time. The default is `100` but you may find that you can raise that or need to lower it. Regardless, all the keys you provide will be used in a query and the data frame returned by the function will contain the results from every query. If you use `verbose = TRUE` you can see each query being made as the function reports back.
+
+```{r, eval=FALSE}
+# Retrieving canopy gap intercept data for the first 500 PrimaryKey values found
+# in the header table
+# Doing this in a single query will return an error, so key_chunk_size is set
+# explicitly although this is technically unnecessary because the default is 100
+all_ldc_headers <- fetch_ldc(data_type = "header",
+                             verbose = TRUE)
+primarykeys_to_query <- all_ldc_headers$PrimaryKey[1:500]
+gap_data <- fetch_ldc(keys = primarykeys_to_query,
+                      key_type = "PrimaryKey",
+                      data_type = "gap",
+                      key_chunk_size = 100)
+```
+
+#### timeout
+
+It's possible that the server may be slow to respond to a request, in which case you can adjust the time that the function waits before considering a nonresponse to be a failure. This is defined in seconds via the argument `timeout` and defaults to `60`. This is not likely to ever need to be changed because 60 seconds is very generous, but is available as an option.
+
+#### take
+
+In addition to there being a character limit to query length, there is also an effective limit to the number of records that can be returned by a single query. Although there are several ways to get a 500 error from the server, the most likely is that a single API query returned too many records. By using `take`, you can limit the number of records returned by each query made by the function. The function will automatically make as many queries as it needs to retrieve the data in chunks not exceeding the size determined by `take`. The default value is `NULL` meaning that there's no limit to how many records a single query will return. If you do get a 500 error, try setting `take` to `10000` or fewer.
+
+```{r, eval=FALSE}
+# Retrieving *all* line-point intercept data in the LDC would result in a 500 error
+# from the server because there are millions of records. Setting take = 10000
+# should solve that problem by making multiple queries instead of one.
+# NOTE: It is absolutely not recommended that you attempt to download the entire
+# data set this way. Please contact the data managers at the LDC if you need a full
+# data set.
+lpi_data <- fetch_ldc(data_type = "lpi",
+                      take = 10000,
+                      verbose = TRUE)
+```
+
+#### exact_match
+
+Sometimes you may want to retrieve data using a key that's a partial match rather than an exact match. If you set `exact_match` to `FALSE`, then the records returned by the query will be all where the value provided as `keys` is *part of* the values in the variable indicated by `key_type`. For example, if you want to retrieve all the indicator values from sampling events that took place in a Major Land Resource Area (MLRA), that's not a separate variable in any of the tables, but is a part of every ecological site ID. You could therefore request all records in which the ecological site ID contains a specific MLRA code using `exact_match = FALSE`. Using this argument does require deeper knowledge of what kinds of values are stored in each variable, so use it with caution.
+
+```{r, eval=FALSE}
+# Retrieving indicator values for all sampling events that took place in
+# the MLRA 036X (southwestern Colorado, northern New Mexico, and southeastern Utah)
+# This will return all records where the value in EcologicalSiteID contains "036X"
+mlra_036X_indicators <- fetch_ldc(keys = "036X",
+                                  key_type = "EcologicalSiteID",
+                                  data_type = "indicators",
+                                  exact_match = "FALSE")
+```
+
+## fetch_ldc_spatial()
+
+The LDC API does not currently directly support spatial queries, but `fetch_ldc_spatial()` makes it possible to retrieve records which fall within user-supplied polygons. This is a wrapper function for `fetch_ldc()` that simply automates a few steps to streamline spatial querying. It does this by converting the header table from the LDC into a POINT sf object and returning all requested data that correspond to the `PrimaryKey` values associated with points that intersect the provided polygons.
+
+The two required arguments are `polygons` and `data_type`. The polygons must be an sf POLYGON or MULTIPOLYGON object (see the [package sf](https://cran.r-project.org/web/packages/sf/index.html) for additional information) and `data_type` must correspond to one of the tables in the LDC (see `fetch_ldc()`). There is no need to combine or dissolve the polygons or to specify an attribute or variable associated with them: the function will return all points that intersect any polygon in the object.
+
+Like `fetch_ldc()`, this function also accepts the arguments `key_chunk_size`, `timeout`, `take`, and `verbose` (see above). In particular, `key_chunk_size` and `take` may be important to specify or adjust because the function is first identifying relevant `PrimaryKey` values and then using those for followup queries to retrieve the requested data. That means that, depending on the scale of the polygons and the density of data, there may be hundreds of associated keys and tens of thousands of records to return. If the server is returning 500 errors, start by changing those values.
+
+```{r, eval=FALSE}
+# Retrieving indicator values for all sampling events that took place in
+# vegetation removal treatments of interest
+# Read in the polygons as an sf object
+treatment_polygons <- sf::st_read(dsn = "vegetation_treatments.gdb",
+                                  layer = "removal_treatment_polygons")
+# Use the sf object to retrieve only relevant data
+treatment_indicator_data <- fetch_ldc_spatial(polygons = treatment_polygons,
+                                              data_type = "indicators",
+                                              verbose = TRUE)
+
+# Retrieving line-point intercept data for all sampling events that took place
+# in vegetation removal treatments
+treatment_lpi_data <- fetch_ldc_spatial(polygons = treatment_polygons,
+                                        data_type = "lpi",
+                                        # The LPI table has hundreds of records
+                                        # per sampling event, so take may need
+                                        # to be specified to avoid server errors
+                                        take = 10000,
+                                        verbose = TRUE)
+```
+
+## fetch_ldc_ecosite()
+
+One of the most common attributes used to request data is the associated ecological site ID, but the variable `EcologicalSiteID` only appears in some tables (the headers and indicators). This function is a wrapper for `fetch_ldc()` that automates first identifying all `PrimaryKey` values associated with the specified ecological site ID(s) and then retrieving the requested data associated with those keys.
+
+The minimum required arguments are just `keys` which must will be compared against the values in `EcologicalSiteID` in the headers table and `data_type` which specified which table to retrieve associated records from. Additional supported arguments are `key_chunk_size`, `timeout`, `take`, `exact_match`, and `verbose` (see above).
+
+```{r, eval=FALSE}
+# Retrieving gap values for all sampling events that took place in
+# the ecological sites R036XB006NM and R036XB007NM
+ecosite_gap_data <- fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"),
+                              data_type = "gap"
+                              take = 10000,
+                              verbose = TRUE)
+
+# Retrieving soil stability values for all sampling events that took place in
+# the MLRA 036X (southwestern Colorado, northern New Mexico, and southeastern Utah)
+# This will return all records where the value in EcologicalSiteID contains "036X"
+mlra_gap_data <- fetch_ldc_ecosite(keys = "036X",
+                                   data_type = "soilstability",
+                                   exact_match = FALSE,
+                                   verbose = TRUE)
+```

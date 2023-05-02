@@ -1,0 +1,74 @@
+---
+title: "Using Ecosystem Dynamics Interpretive Tool functions"
+author: "Joe Brehm"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using Ecosystem Dynamics Interpretive Toolfunctions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+The Ecosystem Dynamics Interpretive Tool (EDIT) provides detailed data on ecological site descriptions and state and transition models. These are available via [website](https://edit.jornada.nmsu.edu/), and via API. `trex` provides tools to easily access these data, via the function `fetch_edit()`. 
+
+## fetch_edit()
+
+This is the overarching wrapper function for making any query of the EDIT API. User-provided parameters specify the data to return, and the MLRA(s) to return data for.
+
+
+### Basic use
+
+The EDIT function requires at minimum the `mlra` and `data_type` arguments. All ecological sites within an MLRA will be queried for that MLRA, returning the requested data type. Valid `data_type` inputs are "ecosites", "rangeland", "overstory", "understory". "climatic-features", "ecological-dynamics", "general-information", "interpretations", "physiographic-features", "reference-sheet", "soil-features", "supporting-information", "water-features", and "states". The function contains a `verbose` parameter, if TRUE it will provide diagnostic messages that include the URLs the function is attempting to query. 
+
+```{r, eval=FALSE}
+# This retrieves ecological site IDs and names from MLRA 039X, and reports queried URLs.
+edit_039X_ecosite <- fetch_edit(mlra = "039X", data_type = "ecosite", verbose = TRUE)
+
+# This retrieves ecological site IDs and names from MLRAs 039X and 040X, and reports queried URLs.
+edit_039X040X_ecosite <- fetch_edit(mlra = c("039X", "040X"), data_type = "ecosite", verbose = TRUE)
+
+# This retrieves climate data from MLRA 039X. It does not report queried URLs, as this is a large set of queries. 
+edit_039X_climate <- fetch_edit(mlra = "039X", data_type = "climate", verbose = FALSE)
+
+```
+
+### Advanced use
+
+#### keys and key_type
+EDIT ecological sites can be queried by a set of request parameters using `keys` and `key_type`, filtering the returned data by properties of the ecological sites. Due to the nature of EDIT, there are a limited range of parameters that can be queried. These are: "precipitation", "frostFreeDays", "elevation", "slope", "landform", "parentMaterialOrigin", "parentMaterialKind", and "surfaceTexture". Note that when querying numeric parameters, the ecological sites returned include all of those that occur within a given range of parameters, for example a query of slope from between 10 and 20% would include a site that occurs between 15 and 30% slope.
+
+All `data_type` options are queriable with the same set of parameters.
+
+```{r, eval = FALSE}
+# This retrieves ecological site IDs and names from MLRA 039X, for sites that occur at slopes between 15 and 30%, and reports queried URLs.
+edit_039X_ecosite_filter_slope <- fetch_edit(mlra = "039X", data_type = "ecosite", keys = "15:30", key_type = "slope", verbose = TRUE)
+
+# This retrieves ecological site IDs and names from MLRA 039X, for sites that occur at slopes between 15 and 30%, and reports queried URLs.
+edit_039X_ecosite_filter_landform <- fetch_edit(mlra = "039X", data_type = "ecosite", keys = "mountain", key_type = "landform", verbose = TRUE)
+
+```
+
+#### key_chunk_size
+
+This argument determines how many of the provided keys will be used for a single API query. There's a character count limit for queries and so it's possible that a requesting data via a single query could exceed that limit. By setting `key_chunk_size`, you can control how many keys will be used in a query at a time. The default is `100` but you may find that you can raise that or need to lower it. Regardless, all the keys you provide will be used in a query and the data frame returned by the function will contain the results from every query. If you use `verbose = TRUE` you can see each query being made as the function reports back.
+
+Unlike with the LDC, EDIT queries will rarely require this parameter to be changed, but it is an option available for troubleshooting.
+
+```{r, eval=FALSE}
+# This retrieves overstory species community data using a smaller chunk size.
+edit_039X_overstory_50 <- fetch_edit(mlra = "039X",
+                                     data_type = "overstory",
+                                     key_chunk_size = 50,
+                                     verbose = FALSE)
+
+```
+
+#### timeout
+
+It's possible that the server may be slow to respond to a request, in which case you can adjust the time that the function waits before considering a nonresponse to be a failure. This is defined in seconds via the argument `timeout` and defaults to `60`. This is not likely to ever need to be changed because 60 seconds is very generous, but is available as an option.

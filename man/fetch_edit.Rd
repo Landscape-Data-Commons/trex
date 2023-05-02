@@ -4,6 +4,7 @@
 \alias{fetch_edit_ecosites}
 \alias{fetch_edit_description}
 \alias{fetch_edit_community}
+\alias{fetch_edit}
 \title{Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA is provided}
 \usage{
 fetch_edit_ecosites(
@@ -37,13 +38,26 @@ fetch_edit_community(
   timeout = 60,
   verbose = F
 )
+
+fetch_edit(
+  mlra,
+  data_type,
+  keys = NULL,
+  key_type = NULL,
+  ecosystem_state_sequence = NULL,
+  land_use_sequence = NULL,
+  community_sequence = NULL,
+  key_chunk_size = 100,
+  timeout = 60,
+  verbose = F
+)
 }
 \arguments{
 \item{mlra}{Character string or vector of character strings or \code{NULL}. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned. If \code{NULL}, then data from all MLRAs in EDIT will be returned (WARNING: Returning data from all MLRAs is extremely slow with this function).}
 
 \item{keys}{Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.}
 
-\item{key_type}{Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}}
+\item{key_type}{Optional character string. Variable to query using \code{keys}. Valid key_types are: "precipitation", "frostFreeDays", "elevation", "slope", "landform", "parentMaterialOrigin", "parentMaterialKind", and "surfaceTexture" . Defaults to \code{NULL}}
 
 \item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
 
@@ -51,18 +65,20 @@ fetch_edit_community(
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 
-\item{data_type}{Restricted character string. One of "rangeland", "overstory", or "understory". The type of data to be returned.}
+\item{data_type}{Restricted character string. One of "ecosites", "rangeland", "overstory", "understory". "climatic-features", "ecological-dynamics", "general-information", "interpretations", "physiographic-features", "reference-sheet", "soil-features", "supporting-information", "water-features", or "states". The type of data to be returned.}
 
-\item{ecosystem_state_sequence}{Optional numeric. The sequence code assigned to ecosystem state. Typically, this should be left NULL. Defaults to \code{NULL}.}
+\item{ecosystem_state_sequence}{Optional numeric. The sequence code assigned to ecosystem state, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
 
-\item{land_use_sequence}{Optional numeric. The sequence code assigned to land use. Typically, this should be left NULL. Defaults to \code{NULL}.}
+\item{land_use_sequence}{Optional numeric. The sequence code assigned to land use, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
 
-\item{community_sequence}{Optional numeric. The sequence code assigned to plant community. Typically, this should be left NULL. Defaults to \code{NULL}.}
+\item{community_sequence}{Optional numeric. The sequence code assigned to plant community, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
 }
 \value{
 A data frame of ecological site ID records meeting the parameters defined by \code{keys} and \code{key_type}.
 
-A data frame or list of data frames (if data_type = "all") with the requested data tables.
+A data frame with the requested EDIT data.
+
+A data frame containing rangeland community composition data.
 
 A data frame containing rangeland community composition data.
 }
@@ -72,10 +88,10 @@ Fetch ecological sites for a specified MLRA, or all ecological sites if no MLRA 
 Fetch EDIT text descriptions of ecological site data
 
 Fetch rangeland community composition tables
+
+Fetch EDIT data from any catalog
 }
 \examples{
-# To retrieve all ecological sites in EDIT
-fetch_edit_ecosites(mlra = NULL)
 # To retrieve all ecological sites from MLRA 039X
 fetch_edit_ecosites(mlra = "039X")
 # To retrieve all ecological sites from MLRAs 039X and 040X
@@ -86,20 +102,29 @@ fetch_edit_ecosites(mlra = "039X", keys = "15:30", key_type = "slope")
 fetch_edit_ecosites(mlra = "039X", keys = "mountain", key_type = "landform")
 # To retrieve ecological sites that exist at 4500 to 5000 feet of elevation. Note: this includes all sites whose elevation range overlaps with the given range. For example, this will return sites with elevation range 4600-7500 feet.
 fetch_edit_ecosites(mlra = "039X", keys = "4500:5000", key_type = "elevation")
-# To retrieve full ecological site descriptions from MLRA 001X
-fetch_edit_description(mlra = "001X", data_type = "all")
-# To retrieve full ecological site descriptions from MLRAs 001X and 002X
-fetch_edit_description(mlra = c("001X", "002X"), data_type = "all")
-# To retrieve climatic feature descriptions from all ecological sites in MLRAs 001X and 002X
-fetch_edit_description(mlra = c("001X", "002X"), data_type = "climate")
-# To retrieve climatic feature descriptions from ecological sites that exist with slope between 15 and 30\%, from MLRAs 001X and 002X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
-fetch_edit_description(mlra = c("001X", "002X"), data_type = "climate", keys = "15:30", key_type = "slope")
+# To retrieve general ecological site descriptions general MLRA 039X
+fetch_edit_description(mlra = "039X", data_type = "general")
+# To retrieve general ecological site descriptions from MLRAs 039X and 040X
+fetch_edit_description(mlra = c("039X", "040X"), data_type = "general")
+# To retrieve climatic feature descriptions from all ecological sites in MLRAs 039X and 040X
+fetch_edit_description(mlra = c("039X", "040X"), data_type = "climate")
+# To retrieve climatic feature descriptions from ecological sites that exist with slope between 15 and 30\%, from MLRAs 039X and 040X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
+fetch_edit_description(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
 
-placeholder
-
-
-
-
-
-
+# To retrieve overstory community data from MLRA 039X
+fetch_edit_community(mlra = "039X", data_type = "overstory")
+# To retrieve understory community data from MLRA 039X
+fetch_edit_community(mlra = "040X", data_type = "understory")
+# To retrieve overstory community data from MLRAs 039X and 040X
+fetch_edit_community(mlra = c("039X", "040X"), data_type = "overstory")
+# To retrieve overstory community data from ecological sites that exist with slope between 15 and 30\%, within MLRAs 039X and 040X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
+fetch_edit_community(mlra = c("039X", "040X"), data_type = "overstory", keys = "15:30", key_type = "slope")
+# To retrieve ecological site IDs and names from MLRA 039X
+fetch_edit(mlra = "039X", data_type = "ecosite")
+# To retrieve understory community data from MLRA 039X
+fetch_edit(mlra = "039X", data_type = "understory")
+# To retrieve climatic feature descriptions from all ecological sites in MLRAs 039X and 040X
+fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
+# To retrieve overstory community data from ecological sites that exist with slope between 15 and 30\%, within MLRAs 039X and 040X. Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70\%.
+fetch_edit(mlra = c("039X", "040X"), data_type = "overstory", keys = "15:30", key_type = "slope")
 }

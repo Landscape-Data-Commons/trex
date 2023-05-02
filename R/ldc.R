@@ -19,9 +19,10 @@
 #' * To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
 #' @examples
 #' # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
-#' fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
-#' # To retrieve all LPI data collected as part of projects that include "Taos" in the project name
-#' fetch_ldc(keys = "Taos", key_type = "ProjectName", data_type = "lpi", exact_match = FALSE)
+#' headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
+#' # To retrieve all LPI data collected in ecological sites in the 036X Major Land Resource Area (MLRA)
+#' relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data_type = "header", exact_match = FALSE)
+#' lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
 #' @export
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
@@ -43,7 +44,18 @@ fetch_ldc <- function(keys = NULL,
                                            "species",
                                            "dustdeposition",
                                            "horizontalflux",
-                                           "schema"),
+                                           "schema",
+                                           "dataGap",
+                                           "dataHeader",
+                                           "dataHeight",
+                                           "dataLPI",
+                                           "dataSoilStability",
+                                           "dataSpeciesInventory",
+                                           "geoIndicators",
+                                           "geoSpecies",
+                                           "dataDustDeposition",
+                                           "dataHorizontalFlux",
+                                           "aerosummary"),
                              table_name = c("dataGap",
                                             "dataHeader",
                                             "dataHeight",
@@ -54,9 +66,20 @@ fetch_ldc <- function(keys = NULL,
                                             "geoSpecies",
                                             "dataDustDeposition",
                                             "dataHorizontalFlux",
-                                            "tbl-schema/latest"))
+                                            "tbl-schema/latest",
+                                            "dataGap",
+                                            "dataHeader",
+                                            "dataHeight",
+                                            "dataLPI",
+                                            "dataSoilStability",
+                                            "dataSpeciesInventory",
+                                            "geoIndicators",
+                                            "geoSpecies",
+                                            "dataDustDeposition",
+                                            "dataHorizontalFlux",
+                                            "aerosummary"))
   if (!(data_type %in% valid_tables$data_type)) {
-    stop(paste0("data_type must be one of the following character strings: ",
+    stop(paste0("data_type must be one of the following character strings (some are aliases of each other): ",
                 paste(valid_tables$data_type,
                       collapse = ", "),
                 "."))
@@ -106,6 +129,17 @@ fetch_ldc <- function(keys = NULL,
                                    trimws(unlist(stringr::str_split(string = X,
                                                                     pattern = ",")))
                                  }))
+    # OKAY! So it turns out that it's not impossible for keys to contain
+    # ampersands which will result in malformed API queries, so we'll replace
+    # them with the unicode reference %26
+    keys_vector_original <- keys_vector
+    keys_vector <- gsub(x = keys_vector,
+                 pattern = "[&]",
+                 replacement = "%26")
+    
+    if (verbose & !identical(keys_vector_original, keys_vector)) {
+      warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
+    }
     
     if (!exact_match) {
       if (verbose) {
@@ -173,7 +207,8 @@ fetch_ldc <- function(keys = NULL,
                       timeout = timeout,
                       take = take,
                       user_agent = user_agent,
-                      FUN = function(X, data_type, take, timeout, user_agent){
+                      verbose = verbose,
+                      FUN = function(X, data_type, take, timeout, user_agent, verbose){
                         
                         # We handle things differently if the data type is header
                         # because the header table doesn't have an rid variable
@@ -192,8 +227,14 @@ fetch_ldc <- function(keys = NULL,
                           
                           # What if there's an error????
                           if (httr::http_error(response)) {
-                            stop(paste0("Query failed with status ",
-                                        response$status_code))
+                            if (response$status_code == 500) {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code,
+                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+                            } else {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code))
+                            }
                           }
                           
                           # Grab only the data portion
@@ -211,6 +252,10 @@ fetch_ldc <- function(keys = NULL,
                           # and then after that we'll keep trying with the last
                           # rid value + 1 as the cursor until we get an empty
                           # response
+                          if (verbose) {
+                            message(paste0("Retrieving records in chunks of ", take))
+                          }
+                          
                           query <- paste0(X, "&take=", take)
                           
                           if (verbose) {
@@ -225,8 +270,14 @@ fetch_ldc <- function(keys = NULL,
                           
                           # What if there's an error????
                           if (httr::http_error(response)) {
-                            stop(paste0("Query failed with status ",
-                                        response$status_code))
+                            if (response$status_code == 500) {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code,
+                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+                            } else {
+                              stop(paste0("Query failed with status ",
+                                          response$status_code))
+                            }
                           }
                           
                           # Grab only the data portion
@@ -296,7 +347,10 @@ fetch_ldc <- function(keys = NULL,
   } else {
     # If there are data and the user gave keys, find which if any are missing
     if (!is.null(keys) & exact_match) {
-      missing_keys <- keys_vector[!(keys_vector %in% data[[key_type]])]
+      # Note that we're using keys_vector_original because even if we made
+      # alterations to keys_vector, the actual retrieved keys should match the
+      # original values despite substituting unicode references for illegal characters
+      missing_keys <- keys_vector_original[!(keys_vector_original %in% data[[key_type]])]
       if (length(missing_keys) > 0) {
         warning(paste0("The following keys were not associated with data: ",
                        paste(missing_keys,
