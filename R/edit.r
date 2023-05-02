@@ -722,7 +722,7 @@ fetch_edit_community <- function(mlra,
 #' @param mlra Character string or vector of character strings or \code{NULL}. The Major Land Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be returned. If \code{NULL}, then data from all MLRAs in EDIT will be returned (WARNING: Returning data from all MLRAs is extremely slow with this function).
 #' @param data_type Restricted character string. One of "ecosites", "rangeland", "overstory", "understory". "climatic-features", "ecological-dynamics", "general-information", "interpretations", "physiographic-features", "reference-sheet", "soil-features", "supporting-information", "water-features", or "states". The type of data to be returned.
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
-#' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
+#' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: "precipitation", "frostFreeDays", "elevation", "slope", "landform", "parentMaterialOrigin", "parentMaterialKind", and "surfaceTexture" . Defaults to \code{NULL}
 #' @param ecosystem_state_sequence Optional numeric. The sequence code assigned to ecosystem state, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
 #' @param land_use_sequence Optional numeric. The sequence code assigned to land use, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
 #' @param community_sequence Optional numeric. The sequence code assigned to plant community, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
@@ -739,7 +739,7 @@ fetch_edit_community <- function(mlra,
 #' fetch_edit(mlra = "039X", data_type = "understory")
 #' # To retrieve climatic feature descriptions from all ecological sites in MLRAs 039X and 040X
 #' fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
-#' # To retrieve overstory community data from ecological sites that exist with slope between 15 and 30%, within MLRAs 039X and 040X Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70%.
+#' # To retrieve overstory community data from ecological sites that exist with slope between 15 and 30%, within MLRAs 039X and 040X. Note: this includes all sites whose slope range overlaps with the given range. For example this will return sites with slope range 25-70%.
 #' fetch_edit(mlra = c("039X", "040X"), data_type = "overstory", keys = "15:30", key_type = "slope")
 
 fetch_edit <- function(mlra,
@@ -783,6 +783,7 @@ fetch_edit <- function(mlra,
                               "water",
                               "states")){
     out <- fetch_edit_description(mlra = mlra, 
+                                  data_type = data_type,
                                   keys = keys, 
                                   key_type = key_type, 
                                   key_chunk_size = key_chunk_size, 
