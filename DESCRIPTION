@@ -1,7 +1,7 @@
 Package: trex
 Type: Package
 Title: Tools for accessing Landscape Data Commons (LDC) and Ecosystems Dynamics Interpretive Tool (EDIT) APIs
-Version: 0.0.1
+Version: 0.1.0
 Author: person(given="Joe", family="Brehm", role=c("aut", "cre"), email="jrbrehm@nmsu.edu",
 			   given="Nelson", family="Stauffer, role=c("aut", "cre"), email="nelson.stauffer@ars.usda.gov")
 Maintainer: Joe Brehm <jrbrehm@nmsu.edu>
