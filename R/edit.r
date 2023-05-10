@@ -39,7 +39,8 @@ fetch_edit_ecosites <- function(mlra,
   
   # Check input classes
   # There are a limited range of queriable parameters
-  valid_key_types <- c("precipitation", 
+  valid_key_types <- c("id",
+                       "precipitation", 
                        "frostFreeDays", 
                        "elevation", 
                        "slope", 
@@ -74,6 +75,19 @@ fetch_edit_ecosites <- function(mlra,
     base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/class-list.json")
   } else {
     base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/", mlra, "/class-list.json")
+  }
+  
+  # If ecosite IDs are requested, pass the id(s) to a vector and set keys to NULL
+  if(!is.null(key_type)){
+    if(key_type == "id"){
+      ecosites <- keys
+      keys <- NULL
+      key_type <- NULL
+    } else {
+      ecosites <- NULL
+    }
+  } else {
+    ecosites <- NULL
   }
   
   # If there are no keys, grab the whole table
@@ -155,6 +169,11 @@ fetch_edit_ecosites <- function(mlra,
   
   # Combine all the results of the queries
   results_dataonly <- dplyr::bind_rows(data_list)
+  
+  # If filtering by ecosite ID, do it
+  if(!is.null(ecosites)){
+    results_dataonly <- subset(results_dataonly, id %in% ecosites)
+  }
   
   # If there aren't data, let the user know
   if (length(results_dataonly) < 1) {
@@ -254,6 +273,14 @@ fetch_edit_description <- function(mlra,
   
   if(length(ecosites_df$id) ==  0) {
     stop(paste0("No ecosites retrived with ", key_type, " ", keys))
+  }
+  
+  # If key_type is ID, then once ecosites are fetched the key has to be cleared
+  if(!is.null(key_type)){
+    if(key_type == "id"){
+      keys <- NULL
+      key_type <- NULL
+    }
   }
   
   # Edit structure varies by table
@@ -494,6 +521,14 @@ fetch_edit_community <- function(mlra,
     stop(paste0("No ecosites retrived with ", key_type, " ", keys))
   }
   
+  # If key_type is ID, then once ecosites are fetched the key has to be cleared
+  if(!is.null(key_type)){
+    if(key_type == "id"){
+      keys <- NULL
+      key_type <- NULL
+    }
+  }
+
   # If any of the three sequence variables is NULL (land use, community, and ecosystem state), return results for all existing sequences
   if(any(is.null(land_use_sequence), is.null(ecosystem_state_sequence), is.null(community_sequence))){
     message("One or more of land_use_sequence, ecosystem_state_sequence, or community_sequence is NULL. Querying EDIT to find all existing sequences")
