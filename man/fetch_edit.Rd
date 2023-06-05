@@ -31,9 +31,6 @@ fetch_edit_community(
   data_type,
   keys = NULL,
   key_type = NULL,
-  ecosystem_state_sequence = NULL,
-  land_use_sequence = NULL,
-  community_sequence = NULL,
   key_chunk_size = 100,
   timeout = 60,
   verbose = F
@@ -44,9 +41,6 @@ fetch_edit(
   data_type,
   keys = NULL,
   key_type = NULL,
-  ecosystem_state_sequence = NULL,
-  land_use_sequence = NULL,
-  community_sequence = NULL,
   key_chunk_size = 100,
   timeout = 60,
   verbose = F
@@ -66,12 +60,6 @@ fetch_edit(
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 
 \item{data_type}{Restricted character string. One of "ecosites", "rangeland", "overstory", "understory". "climatic-features", "ecological-dynamics", "general-information", "interpretations", "physiographic-features", "reference-sheet", "soil-features", "supporting-information", "water-features", or "states". The type of data to be returned.}
-
-\item{ecosystem_state_sequence}{Optional numeric. The sequence code assigned to ecosystem state, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
-
-\item{land_use_sequence}{Optional numeric. The sequence code assigned to land use, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
-
-\item{community_sequence}{Optional numeric. The sequence code assigned to plant community, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.}
 }
 \value{
 A data frame of ecological site ID records meeting the parameters defined by \code{keys} and \code{key_type}.
