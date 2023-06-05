@@ -449,9 +449,6 @@ fetch_edit_description <- function(mlra,
 #' @param data_type Restricted character string. One of "rangeland", "overstory", or "understory". The type of data to be returned.
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
-#' @param ecosystem_state_sequence Optional numeric. The sequence code assigned to ecosystem state. Typically, this should be left NULL. Defaults to \code{NULL}.
-#' @param land_use_sequence Optional numeric. The sequence code assigned to land use. Typically, this should be left NULL. Defaults to \code{NULL}.
-#' @param community_sequence Optional numeric. The sequence code assigned to plant community. Typically, this should be left NULL. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
@@ -474,9 +471,6 @@ fetch_edit_community <- function(mlra,
                                  data_type,
                                  keys = NULL,
                                  key_type = NULL,
-                                 ecosystem_state_sequence = NULL,
-                                 land_use_sequence = NULL,
-                                 community_sequence = NULL,
                                  key_chunk_size = 100,
                                  timeout = 60,
                                  verbose = F){
@@ -528,54 +522,59 @@ fetch_edit_community <- function(mlra,
       key_type <- NULL
     }
   }
-
+  
   # If any of the three sequence variables is NULL (land use, community, and ecosystem state), return results for all existing sequences
-  if(any(is.null(land_use_sequence), is.null(ecosystem_state_sequence), is.null(community_sequence))){
-    message("One or more of land_use_sequence, ecosystem_state_sequence, or community_sequence is NULL. Querying EDIT to find all existing sequences")
-    states <- fetch_edit_description(mlra = mlra, data_type = "states", keys = keys, key_type = key_type, key_chunk_size = key_chunk_size, 
-                                     timeout = timeout, verbose = verbose)
-    
-    communityparams <- subset(states, !is.na(landUse) & !is.na(state) & !is.na(community))
-    
-    # If a sequence variable is specified, limit community params to only that subset
-    if(!is.null(ecosystem_state_sequence)){
-      communityparams <- subset(communityparams, state == ecosystem_state_sequence)
-    }
-    if(!is.null(community_sequence)){
-      communityparams <- subset(communityparams, community == community_sequence)
-    }
-    if(!is.null(land_use_sequence)){
-      communityparams <- subset(communityparams, landUse == land_use_sequence)
-    }
-    
-    # construct URLs
-    base_url <- paste(sep = "/", 
-                      "https://edit.jornada.nmsu.edu/services/plant-community-tables/esd",
-                      communityparams$mlra,
-                      communityparams$id,
-                      communityparams$landUse,
-                      communityparams$state,
-                      communityparams$community,
-                      current_table)
-  } else {
-    # Its much easier to construct URLs if the sequence variables are specified
-    base_url <- paste(sep = "/",
-                      "https://edit.jornada.nmsu.edu/services/plant-community-tables/esd",
-                      ecosites_df$urlsuffix,
-                      land_use_sequence, 
-                      ecosystem_state_sequence, 
-                      community_sequence,
-                      current_table
-    )
-    
-    # communityparams is necessary later on, so we have to create one here too
-    communityparams <- ecosites_df[,c("geoUnit", "id", "name")]
-    colnames(communityparams)[1] <- "mlra"
-    communityparams$landUse <- land_use_sequence
-    communityparams$state <- ecosystem_state_sequence
-    communityparams$community <- community_sequence
-    communityparams$ecositeName <- communityparams$name
+  # update 5/10/23: do this all the time
+  # if(any(is.null(land_use_sequence), is.null(ecosystem_state_sequence), is.null(community_sequence))){
+  # message("One or more of land_use_sequence, ecosystem_state_sequence, or community_sequence is NULL. Querying EDIT to find all existing sequences")
+  if(verbose){
+    message("Querying EDIT to find all existing ecosystem state, community, and land use sequences")
   }
+  states <- fetch_edit_description(mlra = mlra, data_type = "states", keys = keys, key_type = key_type, key_chunk_size = key_chunk_size,
+                                   timeout = timeout, verbose = verbose)
+  
+  communityparams <- subset(states, !is.na(landUse) & !is.na(state) & !is.na(community))
+  
+  # # If a sequence variable is specified, limit community params to only that subset
+  # if(!is.null(ecosystem_state_sequence)){
+  #   communityparams <- subset(communityparams, state == ecosystem_state_sequence)
+  # }
+  # if(!is.null(community_sequence)){
+  #   communityparams <- subset(communityparams, community == community_sequence)
+  # }
+  # if(!is.null(land_use_sequence)){
+  #   communityparams <- subset(communityparams, landUse == land_use_sequence)
+  # }
+  # 
+  # construct URLs
+  base_url <- paste(sep = "/", 
+                    "https://edit.jornada.nmsu.edu/services/plant-community-tables/esd",
+                    communityparams$mlra,
+                    communityparams$id,
+                    communityparams$landUse,
+                    communityparams$state,
+                    communityparams$community,
+                    current_table)
+  
+  # else {
+  #   # Its much easier to construct URLs if the sequence variables are specified
+  #   base_url <- paste(sep = "/",
+  #                     "https://edit.jornada.nmsu.edu/services/plant-community-tables/esd",
+  #                     ecosites_df$urlsuffix,
+  #                     land_use_sequence, 
+  #                     ecosystem_state_sequence, 
+  #                     community_sequence,
+  #                     current_table
+  #   )
+  #   
+  # # communityparams is necessary later on, so we have to create one here too
+  # communityparams <- ecosites_df[,c("geoUnit", "id", "name")]
+  # colnames(communityparams)[1] <- "mlra"
+  # communityparams$landUse <- land_use_sequence
+  # communityparams$state <- ecosystem_state_sequence
+  # communityparams$community <- community_sequence
+  # communityparams$ecositeName <- communityparams$name
+  # }
   
   # If querying the ecosite rather than the table, don't make keys_vector
   if(is.null(keys)) {
@@ -758,9 +757,6 @@ fetch_edit_community <- function(mlra,
 #' @param data_type Restricted character string. One of "ecosites", "rangeland", "overstory", "understory". "climatic-features", "ecological-dynamics", "general-information", "interpretations", "physiographic-features", "reference-sheet", "soil-features", "supporting-information", "water-features", or "states". The type of data to be returned.
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: "precipitation", "frostFreeDays", "elevation", "slope", "landform", "parentMaterialOrigin", "parentMaterialKind", and "surfaceTexture" . Defaults to \code{NULL}
-#' @param ecosystem_state_sequence Optional numeric. The sequence code assigned to ecosystem state, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
-#' @param land_use_sequence Optional numeric. The sequence code assigned to land use, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
-#' @param community_sequence Optional numeric. The sequence code assigned to plant community, used when querying plant community data. Typically, this should be left NULL. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
@@ -781,13 +777,10 @@ fetch_edit <- function(mlra,
                        data_type,
                        keys = NULL,
                        key_type = NULL,
-                       ecosystem_state_sequence = NULL,
-                       land_use_sequence = NULL,
-                       community_sequence = NULL,
                        key_chunk_size = 100,
                        timeout = 60,
                        verbose = F){
-  if(data_type == "ecosite"){
+  if(data_type == "ecosites"){
     out <- fetch_edit_ecosites(mlra = mlra, 
                                keys = keys, 
                                key_type = key_type, 
@@ -801,9 +794,6 @@ fetch_edit <- function(mlra,
                                 data_type = data_type,
                                 keys = keys,
                                 key_type = key_type,
-                                ecosystem_state_sequence = ecosystem_state_sequence,
-                                land_use_sequence = land_use_sequence,
-                                community_sequence = community_sequence,
                                 key_chunk_size = key_chunk_size,
                                 timeout = timeout,
                                 verbose = verbose)
