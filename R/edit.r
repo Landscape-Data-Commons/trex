@@ -420,6 +420,7 @@ fetch_edit_description <- function(mlra,
     
   } else {
     data_list_reshape <- sapply(data_list, function(e){
+      e[sapply(e, function(x) length(x) == 0)] <- NA
       d <- as.data.frame(t(unlist(e)))
       return(d)
     })
