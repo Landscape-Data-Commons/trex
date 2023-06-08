@@ -12,6 +12,7 @@
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @param format_as_dataframe Logical. If \code{FALSE} then the function will return the requested parameter as a list object with each entry as a different ecological site. Intended for debugging only. Defaults to \code{TRUE}.
 #' @returns A data frame of ecological site ID records meeting the parameters defined by \code{keys} and \code{key_type}.
 #' 
 #' @examples 
@@ -34,7 +35,8 @@ fetch_edit_ecosites <- function(mlra,
                                 key_type = NULL, 
                                 key_chunk_size = 100, 
                                 timeout = 60, 
-                                verbose = F){
+                                verbose = F,
+                                format_as_dataframe = T){
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check input classes
@@ -167,6 +169,9 @@ fetch_edit_ecosites <- function(mlra,
                         content_df[["ecoclasses"]]
                       })
   
+  # For debugging, return the unformatted list if format_as_dataframe == F
+  if (!format_as_dataframe) return(data_list)
+  
   # Combine all the results of the queries
   results_dataonly <- dplyr::bind_rows(data_list)
   
@@ -192,6 +197,7 @@ fetch_edit_ecosites <- function(mlra,
 #' @param key_type Optional character string. Variable to query using \code{keys}. Valid key_types are: precipitation, frostFreeDays, elevation, slope, landform, parentMaterialOrigin, parentMaterialKind, and surfaceTexture . Defaults to \code{NULL}
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param format_as_dataframe Logical. If \code{FALSE} then the function will return the requested parameter as a list object with each entry as a different ecological site. Intended for debugging only. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 
 #' @returns A data frame with the requested EDIT data. 
@@ -216,7 +222,8 @@ fetch_edit_description <- function(mlra,
                                    key_type = NULL,
                                    key_chunk_size = 100,
                                    timeout = 60,
-                                   verbose = F){
+                                   verbose = F,
+                                   format_as_dataframe = T){
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check data_type
@@ -378,6 +385,9 @@ fetch_edit_description <- function(mlra,
   # Names are recycled later on
   names(data_list) <- ecosites_df$id
   
+  # For debugging, return the unformatted list if format_as_dataframe == F
+  if (!format_as_dataframe) return(data_list)
+  
   # Remove failed queries
   data_list <- data_list[!grepl("failed with status", data_list)]
   
@@ -389,7 +399,7 @@ fetch_edit_description <- function(mlra,
   
   ### Process data to return data frames with ecosite as row
   # some data types require different reshaping
-  if(data_type %in% c("water", "ecodynamics", "reference", "interpretations", "physiography", "soil")){
+  if(data_type %in% c("water", "reference", "interpretations", "soil")){
     
     data_list_reshape <- sapply(data_list, function(e){
       e[sapply(e, function(x) length(x) == 0)] <- NA
@@ -408,18 +418,15 @@ fetch_edit_description <- function(mlra,
     rownames(results_dataonly) <- NULL
     
   } else if(data_type == "states"){
+    # If the returned is a list of dataframes with no included lists
     for (i in 1:length(data_list)){
       data_list[[i]]$id <- ecosites_df$id[i]
       data_list[[i]]$mlra <- ecosites_df$geoUnit[i]
       data_list[[i]]$ecositeName <- ecosites_df$name[i]
     }
     
-    results_dataonly <- dplyr::bind_rows(data_list)
-    
-    # specify that if no data was retrieved for a given ecosite, there is no state data for that site
-    results_dataonly[is.na(results_dataonly$type), "type"] <- "No state or plant community data for this site"
-    
   } else {
+    # Ecodynamics should go here
     data_list_reshape <- sapply(data_list, function(e){
       e[sapply(e, function(x) length(x) == 0)] <- NA
       d <- as.data.frame(t(unlist(e)))
@@ -441,7 +448,6 @@ fetch_edit_description <- function(mlra,
   results_dataonly <- results_dataonly[,colorder]
   
   return(results_dataonly)
-  
 }
 
 
@@ -454,6 +460,7 @@ fetch_edit_description <- function(mlra,
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @param format_as_dataframe Logical. If \code{FALSE} then the function will return the requested parameter as a list object with each entry as a different ecological site. Intended for debugging only. Defaults to \code{TRUE}.
 #' @returns  A data frame containing rangeland community composition data.
 #' 
 #' @examples 
@@ -475,7 +482,8 @@ fetch_edit_community <- function(mlra,
                                  key_type = NULL,
                                  key_chunk_size = 100,
                                  timeout = 60,
-                                 verbose = F){
+                                 verbose = F,
+                                 format_as_dataframe = T){
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check data_type
@@ -657,6 +665,10 @@ fetch_edit_community <- function(mlra,
                         }
                       })
   
+  # For debugging, return the unformatted list if format_as_dataframe == F
+  if (!format_as_dataframe) return(data_list)
+  
+  # This object will be modified, so create a copy of the data_list
   data_list_allvars <- data_list
   
   # Attach ecosite to the tables before flattening or trimming them
@@ -820,5 +832,30 @@ fetch_edit <- function(mlra,
     stop("data_type must be one of the following character strings: ecosites, rangeland, overstory, understory, climate, ecodynamics, general, interpretations, physiography, reference, soil, supporting, water, states")
   }
   
+  # ### Attach the filtered variable # UNDER CONSTRUCTION
+  # # There are a limited range of queriable parameters
+  # valid_key_types <- c("id",
+  #                      "precipitation", 
+  #                      "frostFreeDays", 
+  #                      "elevation", 
+  #                      "slope", 
+  #                      "landform", 
+  #                      "parentMaterialOrigin", 
+  #                      "parentMaterialKind", 
+  #                      "surfaceTexture")
+  # if(key_type %in% c("precipitation", "frostFreeDays")){
+  #   df_queryparam <- fetch_edit_description(mlra = mlra, data_type = "climate",
+  #                                           keys = keys, key_type = key_type,
+  #                                           key_chunk_size = key_chunk_size, 
+  #                                           timeout = timeout,
+  #                                           verbose = verbose)
+  #   if(key_type == "precipitation"){
+  #     df_queryparam <- df_queryparam[,c("id", "frostFreeDays.average")]
+  #   }
+  #   if(key_type == "frostFreeDays"){
+  #     df_queryparam <- df_queryparam[,c("id", "frostFreeDays.average")]
+  #   }
+  # } else if (key_type %in% c())
+  # 
   return(out)
 }
