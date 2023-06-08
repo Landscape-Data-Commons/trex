@@ -392,6 +392,7 @@ fetch_edit_description <- function(mlra,
   if(data_type %in% c("water", "ecodynamics", "reference", "interpretations", "physiography", "soil")){
     
     data_list_reshape <- sapply(data_list, function(e){
+      e[sapply(e, function(x) length(x) == 0)] <- NA
       d <- as.data.frame(t(unlist(e)))
       return(d)
     })
