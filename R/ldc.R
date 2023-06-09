@@ -307,7 +307,7 @@ fetch_ldc <- function(keys = NULL,
                           # the last chunk
                           while (length(content_df_list[[length(content_df_list)]]) > 0) {
                             # And to avoid flooding the API server with requests,
-                            # We'll put in a delay here.
+                            # we'll put in a delay here.
                             # This gets the current time then spins its wheels,
                             # checking repeatedly to see if enough time has
                             # elapsed, at which point it moves on
