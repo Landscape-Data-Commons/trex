@@ -12,6 +12,7 @@ fetch_edit(
   key_type = NULL,
   key_chunk_size = 100,
   timeout = 60,
+  delay = 500,
   verbose = FALSE,
   path_unparsable_data = NULL
 )
@@ -28,7 +29,7 @@ annual production, overstory, understory, rangeland, surface cover,
 parent material, soil interval, soil nominal, soil ordinal, 
 soil profile, texture, state narratives, or transition narratives.}
 
-\item{tall}{Logical. The function will output tall data if \code{TRUE}, 
+\item{tall}{Optional logical. The function will output tall data if \code{TRUE}, 
 otherwise data will be in wide format. Defaults to \code{TRUE}.}
 
 \item{keys}{Optional character vector. A character vector of all the values 
@@ -40,21 +41,25 @@ returned. Defaults to \code{NULL}.}
 \item{key_type}{Optional character string. Variable to query using 
 \code{keys}. Must be of of: precipitation, frostFreeDays, elevation, 
 slope, landform, parentMaterialOrigin, parentMaterialKind, or surfaceTexture.
-Defaults to \code{NULL}}
+Defaults to \code{NULL}.}
 
-\item{key_chunk_size}{Numeric. The number of keys to send in a single query. 
+\item{key_chunk_size}{Optional numeric. The number of keys to send in a single query. 
 Very long queries fail, so the keys may be chunked into smaller queries with 
 the results of all the queries being combined into a single output. Defaults 
 to \code{100}.}
 
-\item{timeout}{Numeric. The number of seconds to wait for a nonresponse from 
+\item{timeout}{Optional numeric. The number of seconds to wait for a nonresponse from 
 the API before considering the query to have failed. Defaults to \code{60}.}
 
-\item{verbose}{Logical. If \code{TRUE} then the function will report 
+\item{delay}{Optional numeric. The number of milliseconds to wait between 
+API queries. Querying too quickly can crash an API or get you locked out, so 
+adjust this as needed. Defaults to \code{500}.}
+
+\item{verbose}{Optional logical. If \code{TRUE} then the function will report 
 additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 
-\item{path_unparsable_data}{Character string. If provided, then the function 
-will save unparsable data to disk}
+\item{path_unparsable_data}{Optional character string. If provided, then the function 
+will save unparsable data to disk.}
 }
 \value{
 A data frame with the requested EDIT data.
@@ -63,18 +68,19 @@ A data frame with the requested EDIT data.
 Fetch EDIT data
 }
 \examples{
-# To retrieve ecological sites from MLRA 039X
+# To retrieve ecological sites from MLRA 039X 
 fetch_edit(mlra = "039X", data_type = "ecosites")
 # To retrieve ecological sites from MLRAs 039X and 040X
 fetch_edit(mlra = c("039X", "040X"), data_type = "ecosites")
 # To retrieve climatic feature descriptions from all ecological sites in 
-MLRAs 039X and 040X
+# MLRAs 039X and 040X
 fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
 # To retrieve climatic feature descriptions from ecological sites that exist 
-with slope between 15 and 30\%, from MLRAs 039X and 040X.
+# with slope between 15 and 30\%, from MLRAs 039X and 040X.
 # Note: this includes all sites whose slope range overlaps with the given 
-range. For example this will return sites with slope range 25-70\%.
-fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", 
-key_type = "slope")
+# range. For example this will return sites with slope range 25-70\%.
+fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
+# Data can be returned in tall or wide format, defaulting to tall.
+fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
 
 }

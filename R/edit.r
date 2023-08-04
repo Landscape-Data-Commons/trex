@@ -15,7 +15,7 @@
 #' annual production, overstory, understory, rangeland, surface cover, 
 #' parent material, soil interval, soil nominal, soil ordinal, 
 #' soil profile, texture, state narratives, or transition narratives.
-#' @param tall Logical. The function will output tall data if \code{TRUE}, 
+#' @param tall Optional logical. The function will output tall data if \code{TRUE}, 
 #' otherwise data will be in wide format. Defaults to \code{TRUE}. 
 #' @param keys Optional character vector. A character vector of all the values 
 #' to search for in \code{key_type}. The returned data will consist only of 
@@ -25,16 +25,19 @@
 #' @param key_type Optional character string. Variable to query using 
 #' \code{keys}. Must be of of: precipitation, frostFreeDays, elevation, 
 #' slope, landform, parentMaterialOrigin, parentMaterialKind, or surfaceTexture.
-#' Defaults to \code{NULL}
-#' @param key_chunk_size Numeric. The number of keys to send in a single query. 
+#' Defaults to \code{NULL}.
+#' @param key_chunk_size Optional numeric. The number of keys to send in a single query. 
 #' Very long queries fail, so the keys may be chunked into smaller queries with 
 #' the results of all the queries being combined into a single output. Defaults 
 #' to \code{100}.
-#' @param timeout Numeric. The number of seconds to wait for a nonresponse from 
+#' @param timeout Optional numeric. The number of seconds to wait for a nonresponse from 
 #' the API before considering the query to have failed. Defaults to \code{60}.
-#' @param path_unparsable_data Character string. If provided, then the function 
-#' will save unparsable data to disk 
-#' @param verbose Logical. If \code{TRUE} then the function will report 
+#' @param delay Optional numeric. The number of milliseconds to wait between 
+#' API queries. Querying too quickly can crash an API or get you locked out, so 
+#' adjust this as needed. Defaults to \code{500}.
+#' @param path_unparsable_data Optional character string. If provided, then the function 
+#' will save unparsable data to disk. 
+#' @param verbose Optional logical. If \code{TRUE} then the function will report 
 #' additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 
 #' @returns A data frame with the requested EDIT data. 
@@ -52,6 +55,8 @@
 #' # Note: this includes all sites whose slope range overlaps with the given 
 #' # range. For example this will return sites with slope range 25-70%.
 #' fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
+#' # Data can be returned in tall or wide format, defaulting to tall.
+#' fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
 #' 
 #' @rdname fetch_edit
 #' @export fetch_edit
@@ -63,6 +68,7 @@ fetch_edit <- function(mlra,
                        key_type = NULL,
                        key_chunk_size = 100,
                        timeout = 60,
+                       delay = 500,
                        verbose = FALSE,
                        path_unparsable_data = NULL){
   
@@ -131,11 +137,12 @@ fetch_edit <- function(mlra,
     stop("Must provide key_type when providing keys")
   }
   
-  if(!is.null(key_type)){
-    if(key_type == "id"){
-      keys <- NULL
-      key_type <- NULL
-    }
+  if (delay < 0) {
+    stop("delay must be a positive numeric value.")
+  } else {
+    # Convert the value from milliseconds to nanoseconds because we'll be using
+    # microbenchmark::get_nanotime() which returns the current time in nanoseconds
+    delay <- delay * 10^6
   }
   
   base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
@@ -216,6 +223,20 @@ fetch_edit <- function(mlra,
                         
                         # Convert from raw to character
                         content_character <- rawToChar(response_content)
+                        
+                        # To avoid flooding the API server with requests,
+                        # we'll put in a delay here.
+                        # This gets the current time then spins its wheels,
+                        # checking repeatedly to see if enough time has
+                        # elapsed, at which point it moves on
+                        start_time <- microbenchmark::get_nanotime()
+                        repeat {
+                          current_time <- microbenchmark::get_nanotime()
+                          elapsed_time <- current_time - start_time
+                          if (elapsed_time > delay) {
+                            break
+                          }
+                        }
                         
                         # Unnecessary special characters cause problems, so get rid of them
                         content_character <- gsub("\r", " ", content_character)
@@ -332,6 +353,10 @@ fetch_edit <- function(mlra,
         "Production high",
         "Foliar cover low", 
         "Foliar cover high",
+        "Canopy cover low",
+        "Canopy cover high",
+        "Canopy bottom height",
+        "Canopy top height",
         "Cover low", 
         "Cover high",
         "Top depth", 
@@ -386,10 +411,43 @@ fetch_edit <- function(mlra,
                                           values_from = c("Production low", "Production RV", "Production high"))
       
     } else if(data_type %in% c("rangeland")){
-      results_pivot <- tidyr::pivot_wider(unique(results_dataonly),
+      results_dataonly_trimduplicates <- unique(results_dataonly[,c(
+        "MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", 
+        "Ecosystem state", "Plant community", "Custom group number", 
+        "Plant symbol", "Production low", "Production high", "Foliar cover low", 
+        "Foliar cover high")
+      ])
+      
+      results_pivot <- tidyr::pivot_wider(unique(results_dataonly_trimduplicates),
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community", "Custom group number"),
                                           names_from = c("Plant symbol"),
                                           values_from = c("Production low", "Production high", "Foliar cover low", "Foliar cover high"))
+    } else if(data_type %in% c("understory")){
+      results_dataonly_trimduplicates <- unique(results_dataonly[,c(
+        "MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", 
+        "Ecosystem state", "Plant community",  
+        "Plant symbol", "Canopy cover low", "Canopy cover high", "Canopy bottom height", 
+        "Canopy top height")
+      ])
+      
+      results_pivot <- tidyr::pivot_wider(unique(results_dataonly_trimduplicates),
+                                          id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community"),
+                                          names_from = c("Plant symbol"),
+                                          values_from = c("Canopy cover low", "Canopy cover high", "Canopy bottom height", "Canopy top height"))
+      
+    } else if(data_type %in% c("overstory")){
+      results_dataonly_trimduplicates <- unique(results_dataonly[,c(
+        "MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", 
+        "Ecosystem state", "Plant community",  
+        "Plant symbol", "Canopy cover low", "Canopy cover high", "Canopy bottom height", 
+        "Canopy top height", "Tree diameter low", "Tree diameter high", 
+        "Tree basal area low", "Tree basal area high")
+      ])
+      
+      results_pivot <- tidyr::pivot_wider(unique(results_dataonly_trimduplicates),
+                                          id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community"),
+                                          names_from = c("Plant symbol"),
+                                          values_from = c("Canopy cover low", "Canopy cover high", "Canopy bottom height", "Canopy top height", "Tree diameter low", "Tree diameter high", "Tree basal area low", "Tree basal area high"))
       
     } else if(data_type %in% c("surface cover")){
       results_pivot <- tidyr::pivot_wider(unique(results_dataonly),

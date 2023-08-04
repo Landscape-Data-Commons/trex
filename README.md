@@ -54,4 +54,4 @@ edit_overstory_limitslope <- fetch_edit(mlra = "039X", data_type = "overstory", 
 
 ```
 
-Documentation for fetch_edit and its subfunctions provide additional examples.
+Documentation for fetch_edit provides additional examples.
