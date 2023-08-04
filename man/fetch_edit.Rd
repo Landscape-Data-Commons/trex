@@ -63,18 +63,17 @@ A data frame with the requested EDIT data.
 Fetch EDIT data
 }
 \examples{
-# To retrieve ecological sites from MLRA 039X
+# To retrieve ecological sites from MLRA 039X 
 fetch_edit(mlra = "039X", data_type = "ecosites")
 # To retrieve ecological sites from MLRAs 039X and 040X
 fetch_edit(mlra = c("039X", "040X"), data_type = "ecosites")
 # To retrieve climatic feature descriptions from all ecological sites in 
-MLRAs 039X and 040X
+# MLRAs 039X and 040X
 fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
 # To retrieve climatic feature descriptions from ecological sites that exist 
-with slope between 15 and 30\%, from MLRAs 039X and 040X.
+# with slope between 15 and 30\%, from MLRAs 039X and 040X.
 # Note: this includes all sites whose slope range overlaps with the given 
-range. For example this will return sites with slope range 25-70\%.
-fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", 
-key_type = "slope")
+# range. For example this will return sites with slope range 25-70\%.
+fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
 
 }
