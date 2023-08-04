@@ -6,15 +6,17 @@
 
 #' Fetch EDIT data 
 #' @description Fetch EDIT data
-#' @param mlra Character string or vector of character strings. The Major Land 
-#' Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be 
-#' returned.
+#' @param mlra Character string, vector of character strings, or in rare 
+#' instances NULL. The Major Land Resource Area (MLRA) or MLRAs to query. Only 
+#' records from these MLRAs will be returned. Exact MLRA codes are required, to 
+#' see a list of all MLRAs and ecological sites use mlra = NULL and data_type = 
+#' 'mlra'.
 #' @param data_type Restricted character string. The shorthand name of the type 
-#' of data to retrieve. Must be one of: ecosites, climate, landforms, 
-#' physiography interval, physiography nominal, physiography ordinal, 
-#' annual production, overstory, understory, rangeland, surface cover, 
-#' parent material, soil interval, soil nominal, soil ordinal, 
-#' soil profile, texture, state narratives, or transition narratives.
+#' of data to retrieve. Must be one of: 'ecosites', 'climate', 'landforms', 
+#' 'physiography interval', 'physiography nominal', 'physiography ordinal', 
+#' 'annual production', 'overstory', 'understory', 'rangeland', 'surface cover', 
+#' 'parent material', 'soil interval', 'soil nominal', 'soil ordinal', 
+#' 'soil profile', 'texture', 'state narratives', or 'transition narratives'.
 #' @param tall Optional logical. The function will output tall data if \code{TRUE}, 
 #' otherwise data will be in wide format. Defaults to \code{TRUE}. 
 #' @param keys Optional character vector. A character vector of all the values 
@@ -23,8 +25,8 @@
 #' be keys that return no records. If \code{NULL} then the entire table will be 
 #' returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using 
-#' \code{keys}. Must be of of: precipitation, frostFreeDays, elevation, 
-#' slope, landform, parentMaterialOrigin, parentMaterialKind, or surfaceTexture.
+#' \code{keys}. Must be of of: 'precipitation', 'frostFreeDays', 'elevation', 
+#' 'slope', 'landform', 'parentMaterialOrigin', parentMaterialKind, or 'surfaceTexture.'
 #' Defaults to \code{NULL}.
 #' @param key_chunk_size Optional numeric. The number of keys to send in a single query. 
 #' Very long queries fail, so the keys may be chunked into smaller queries with 
@@ -55,8 +57,11 @@
 #' # Note: this includes all sites whose slope range overlaps with the given 
 #' # range. For example this will return sites with slope range 25-70%.
 #' fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
-#' # Data can be returned in tall or wide format, defaulting to tall.
+#' # Data defaults ot a tall format. To retrieve wide climate data from MLRAs 
+#' # 039X and 040X with slope range 15-30%
 #' fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
+#' # MLRA codes must be exact, to see all MLRA and ecological site codes
+#' fetch_edit(mlra = NULL, data_type = "ecosites")
 #' 
 #' @rdname fetch_edit
 #' @export fetch_edit
@@ -75,7 +80,8 @@ fetch_edit <- function(mlra,
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check data_type
-  valid_tables <- data.frame(data_type = c("ecosites",
+  valid_tables <- data.frame(data_type = c("mlra",
+                                           "ecosites",
                                            "climate",
                                            "landforms",
                                            "physiography interval",
@@ -94,7 +100,8 @@ fetch_edit <- function(mlra,
                                            "texture",
                                            "state narratives",
                                            "transition narratives"),
-                             table_name = c("class-list",
+                             table_name = c(NA,
+                                            "class-list",
                                             "climatic-features",
                                             "landforms",
                                             "physiographic-interval-properties",
@@ -114,6 +121,10 @@ fetch_edit <- function(mlra,
                                             "model-state-narratives",
                                             "model-transition-narratives"
                              ))
+  
+  if(is.null(mlra) & data_type != "mlra"){
+    stop("MLRA is required. To see a lsit of all MLRAs, use mlra = NULL and data_type = 'mlra'")
+  }
   
   if (!(data_type %in% valid_tables$data_type)) {
     stop(paste0("data_type must be one of the following character strings: ",
@@ -145,11 +156,17 @@ fetch_edit <- function(mlra,
     delay <- delay * 10^6
   }
   
-  base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
-                     mlra,
-                     "/", 
-                     current_table,
-                     ".txt")  
+  # If data_type is mlra, fetch all ecosites 
+  if(data_type == "mlra" & is.null(mlra)){
+    base_url <- "https://edit.jornada.nmsu.edu/services/downloads/esd/class-list.txt"
+  } else {
+    base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
+                       mlra,
+                       "/", 
+                       current_table,
+                       ".txt")  
+  }
+  
   
   if(is.null(keys)) {
     # If there are no keys, grab the whole table
@@ -339,38 +356,50 @@ fetch_edit <- function(mlra,
   # Turn the list of data frames into one data frame
   results_dataonly <- do.call(rbind, data_list)
   
+  # If data_type is mlra, return only the mlra codes
+  if(data_type == "mlra"){
+    results_dataonly <- as.data.frame(unique(results_dataonly$MLRA))
+    colnames(results_dataonly) <- "mlra"
+  }
+  
   # Enforce numeric type
   results_dataonly <- suppressWarnings(
-    results_dataonly %>% 
-      dplyr::mutate_if(names(.) %in% c(
-        "Representative low", 
-        "Representative high",
-        "Range low", 
-        "Range high", 
-        "Average", 
-        "Production low", 
-        "Production RV", 
-        "Production high",
-        "Foliar cover low", 
-        "Foliar cover high",
-        "Canopy cover low",
-        "Canopy cover high",
-        "Canopy bottom height",
-        "Canopy top height",
-        "Cover low", 
-        "Cover high",
-        "Top depth", 
-        "Bottom depth"),
-        as.numeric))
+    dplyr::mutate_if(results_dataonly, names(results_dataonly) %in% c(
+      "Representative low", 
+      "Representative high",
+      "Range low", 
+      "Range high", 
+      "Average", 
+      "Production low", 
+      "Production RV", 
+      "Production high",
+      "Foliar cover low", 
+      "Foliar cover high",
+      "Canopy cover low",
+      "Canopy cover high",
+      "Canopy bottom height",
+      "Canopy top height",
+      "Cover low", 
+      "Cover high",
+      "Top depth", 
+      "Bottom depth",
+      "Canopy bottom height", 
+      "Canopy top height", 
+      "Tree diameter low", 
+      "Tree diameter high", 
+      "Tree basal area low", 
+      "Tree basal area high"
+    ),
+    as.numeric))
   
   # Tall output is ready
   if(tall){
     return(results_dataonly)
   } else {
     # Pivot data if tall is FALSE
-    if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives")){ # No pivot needed
+    if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives", "mlra")){ # No pivot needed
       results_pivot <- results_dataonly 
-    } else if(data_type == "climate"){
+    } else if(data_type %in% c("climate")){
       # Measurement unit is often left blank
       results_dataonly[results_dataonly$`Measurement unit` == "" | 
                          is.na(results_dataonly$`Measurement unit`) | 
@@ -404,6 +433,7 @@ fetch_edit <- function(mlra,
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID"),
                                           names_from = c("Property"),
                                           values_from = c("Property value"))
+      
     } else if(data_type %in% c("annual production")){
       results_pivot <- tidyr::pivot_wider(results_dataonly,
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community"),
@@ -422,6 +452,7 @@ fetch_edit <- function(mlra,
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community", "Custom group number"),
                                           names_from = c("Plant symbol"),
                                           values_from = c("Production low", "Production high", "Foliar cover low", "Foliar cover high"))
+      
     } else if(data_type %in% c("understory")){
       results_dataonly_trimduplicates <- unique(results_dataonly[,c(
         "MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", 
@@ -434,6 +465,7 @@ fetch_edit <- function(mlra,
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID", "Land use", "Ecosystem state", "Plant community"),
                                           names_from = c("Plant symbol"),
                                           values_from = c("Canopy cover low", "Canopy cover high", "Canopy bottom height", "Canopy top height"))
+      
       
     } else if(data_type %in% c("overstory")){
       results_dataonly_trimduplicates <- unique(results_dataonly[,c(
