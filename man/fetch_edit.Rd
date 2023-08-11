@@ -2,6 +2,7 @@
 % Please edit documentation in R/edit.r
 \name{fetch_edit}
 \alias{fetch_edit}
+\alias{fetch_mlra_codes}
 \title{Fetch EDIT data}
 \usage{
 fetch_edit(
@@ -16,18 +17,22 @@ fetch_edit(
   verbose = FALSE,
   path_unparsable_data = NULL
 )
+
+fetch_mlra_codes(verbose = FALSE)
 }
 \arguments{
-\item{mlra}{Character string or vector of character strings. The Major Land 
-Resource Area (MLRA) or MLRAs to query. Only records from these MLRAs will be 
-returned.}
+\item{mlra}{Character string, vector of character strings, or in rare 
+instances NULL. The Major Land Resource Area (MLRA) or MLRAs to query. Only 
+records from these MLRAs will be returned. Exact MLRA codes are required, to 
+see a list of all MLRAs and ecological sites use mlra = NULL and data_type = 
+'mlra'.}
 
 \item{data_type}{Restricted character string. The shorthand name of the type 
-of data to retrieve. Must be one of: ecosites, climate, landforms, 
-physiography interval, physiography nominal, physiography ordinal, 
-annual production, overstory, understory, rangeland, surface cover, 
-parent material, soil interval, soil nominal, soil ordinal, 
-soil profile, texture, state narratives, or transition narratives.}
+of data to retrieve. Must be one of: 'mlra', 'ecosites', 'climate', 'landforms', 
+'physiography interval', 'physiography nominal', 'physiography ordinal', 
+'annual production', 'overstory', 'understory', 'rangeland', 'surface cover', 
+'parent material', 'soil interval', 'soil nominal', 'soil ordinal', 
+'soil profile', 'texture', 'state narratives', or 'transition narratives'.}
 
 \item{tall}{Optional logical. The function will output tall data if \code{TRUE}, 
 otherwise data will be in wide format. Defaults to \code{TRUE}.}
@@ -39,8 +44,8 @@ be keys that return no records. If \code{NULL} then the entire table will be
 returned. Defaults to \code{NULL}.}
 
 \item{key_type}{Optional character string. Variable to query using 
-\code{keys}. Must be of of: precipitation, frostFreeDays, elevation, 
-slope, landform, parentMaterialOrigin, parentMaterialKind, or surfaceTexture.
+\code{keys}. Must be of of: 'precipitation', 'frostFreeDays', 'elevation', 
+'slope', 'landform', 'parentMaterialOrigin', parentMaterialKind, or 'surfaceTexture.'
 Defaults to \code{NULL}.}
 
 \item{key_chunk_size}{Optional numeric. The number of keys to send in a single query. 
@@ -58,14 +63,21 @@ adjust this as needed. Defaults to \code{500}.}
 \item{verbose}{Optional logical. If \code{TRUE} then the function will report 
 additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 
-\item{path_unparsable_data}{Optional character string. If provided, then the function 
-will save unparsable data to disk.}
+\item{path_unparsable_data}{Optional character string. Because delimiters are 
+sometimes present in narrative data, data from certain ecological sites are 
+not parsable, and must be excluded from function output. If provided, then 
+the function will save unparsable data to a folder specified here. Defaults 
+to \code{NULL}, meaning unparsable data is not saved.}
 }
 \value{
 A data frame with the requested EDIT data.
+
+A data frame with MLRA code, name, and ecological site count.
 }
 \description{
 Fetch EDIT data
+
+Fetch list of MLRA codes and names
 }
 \examples{
 # To retrieve ecological sites from MLRA 039X 
@@ -80,7 +92,10 @@ fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
 # Note: this includes all sites whose slope range overlaps with the given 
 # range. For example this will return sites with slope range 25-70\%.
 fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
-# Data can be returned in tall or wide format, defaulting to tall.
+# Data defaults ot a tall format. To retrieve wide climate data from MLRAs 
+# 039X and 040X with slope range 15-30\%
 fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
+# MLRA codes must be exact. To see all MLRA codes and names
+fetch_mlra_codes()
 
 }
