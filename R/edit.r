@@ -125,10 +125,6 @@ fetch_edit <- function(mlra,
                                             "model-transition-narratives"
                              ))
   
-  if(is.null(mlra) & data_type != "mlra"){
-    stop("MLRA is required. To see a lsit of all MLRAs, use mlra = NULL and data_type = 'mlra', or the convenience function fetch_mlra()")
-  }
-  
   if (!(data_type %in% valid_tables$data_type)) {
     stop(paste0("data_type must be one of the following character strings: ",
                 paste(valid_tables$data_type,
@@ -137,6 +133,11 @@ fetch_edit <- function(mlra,
   }
   
   current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
+  
+  # Check MLRA
+  if(is.null(mlra) & data_type != "mlra"){
+    stop("MLRA is required. To see a list of all MLRAs, use mlra = NULL and data_type = 'mlra', or the convenience function fetch_mlra()")
+  }
   
   # Check input classes
   if (!(class(keys) %in% c("character", "NULL"))) {
@@ -151,6 +152,37 @@ fetch_edit <- function(mlra,
     stop("Must provide key_type when providing keys")
   }
   
+  # Check key_type
+  valid_key_types <- data.frame(key_type = c("precipitation",
+                                             "frostFreeDays",
+                                             "elevation",
+                                             "slope",
+                                             "landform",
+                                             "parentMaterialOrigin",
+                                             "parentMaterialKind",
+                                             "surfaceTexture"),
+                                table_name = c("climatic-features",
+                                               "climatic-features",
+                                               "physiographic-interval-properties",
+                                               "physiographic-interval-properties",
+                                               "landforms",
+                                               "soil-parent-material",
+                                               "soil-parent-material",
+                                               "soil-surface-textures"
+                                ))
+  
+  if(!is.null(key_type)){
+    if (!(key_type %in% valid_key_types$key_type)){
+      stop(paste0("key_type must be one of the following character strings: ",
+                  paste(valid_key_types$key_type,
+                        collapse = ", "),
+                  "."))
+    } else {
+      key_table <- valid_key_types[["table_name"]][valid_key_types$key_type == key_type]
+    }
+  }
+  
+  # Convert delay to nanoseconds
   if (delay < 0) {
     stop("delay must be a positive numeric value.")
   } else {
@@ -165,14 +197,23 @@ fetch_edit <- function(mlra,
     
   } else {
     ecosite_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
-                       mlra,
-                       "/class-list.txt")
+                          mlra,
+                          "/class-list.txt")
     
     base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
                        mlra,
                        "/", 
                        current_table,
                        ".txt")  
+    
+    if(!is.null(key_type)){
+      keytable_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
+                             mlra,
+                             "/", 
+                             key_table,
+                             ".txt")
+    }
+    
   }
   
   
@@ -215,13 +256,16 @@ fetch_edit <- function(mlra,
       message("Building queries.")
     }
     
-    queries <- paste0(base_url)
+    queries <- base_url # Because all querying is done on the ecosite level, nothing more needs to happen
     queries_ecosites <- paste0(ecosite_url,
-                      "?",
-                      key_type,
-                      "=",
-                      keys_chunks)
-  }
+                               "?",
+                               key_type,
+                               "=",
+                               keys_chunks)
+    
+    # Build the filtered data queries
+    queries_filtervartable <- keytable_url
+  } 
   
   # Run the queries
   data_list <- lapply(X = queries,
@@ -229,7 +273,8 @@ fetch_edit <- function(mlra,
                       user_agent = user_agent,
                       delay = delay,
                       verbose = verbose,
-                      FUN = edit_query)
+                      FUN = edit_query,
+                      path_unparsable_data = path_unparsable_data)
   if(!is.null(keys)){
     ecosite_list <- lapply(X = queries_ecosites,
                            timeout = timeout,
@@ -238,16 +283,82 @@ fetch_edit <- function(mlra,
                            verbose = verbose,
                            FUN = edit_query)
     
-    # If there are keys, get necosites from the ecosite list. Otherwise from data_list
-    necosites <- sum(sapply(ecosite_list, length))
+    filtervartable_list <- lapply(X = queries_filtervartable,
+                                  timeout = timeout,
+                                  user_agent = user_agent,
+                                  delay = delay,
+                                  verbose = verbose,
+                                  FUN = edit_query)
     
     # Turn the list of data frames into one data frame
     results_ecosites <- dplyr::bind_rows(ecosite_list)
+    # If there are keys, get necosites from the ecosite list. Otherwise from data_list
+    necosites <- nrow(results_ecosites)
+    
+    # Get the filter variable table
+    results_filtervar <- dplyr::bind_rows(filtervartable_list)
+    
+    # Find the filtered data, and prepare it to join onto output
+    if(key_type %in% c("slope", "elevation", "precipitation", "frostFreeDays")){
+      
+      if(!grepl(":", keys)){
+        stop(paste0("Keys not recognized. For key_type = ", key_type, ", keys must be a colon-delimited tuple of minimum and maximum"))
+      }
+      
+      if(key_type == "precipitation") key_type = "mean annual precipitation" 
+      if(key_type == "frostFreeDays") key_type = "frost free days"
+      rangemin <- strsplit(keys, split = ":")[[1]][1]
+      rangemax <- strsplit(keys, split = ":")[[1]][2]
+       
+      filtervar_table <- results_filtervar[results_filtervar$Property == key_type &  
+                                          ((results_filtervar$`Representative low` >= rangemin & results_filtervar$`Representative low` < rangemax &
+                                              !is.na(results_filtervar$`Representative low`)) | 
+                                          (results_filtervar$`Representative high` <= rangemax & results_filtervar$`Representative high` > rangemin &
+                                             !is.na(results_filtervar$`Representative high`))),
+      c("Ecological site ID", "Representative low", "Representative high")]
+      
+      colnames(filtervar_table)[2:3] <- paste0(colnames(filtervar_table)[2:3], "_", key_type)
+      
+    } else if(key_type %in% c("landform")){
+      # Go from %20 back to space
+      keys <- gsub("%20", " ", keys)
+      keys <- strsplit(keys, "\\|")[[1]]
+      
+      filtervar_table <- results_filtervar[results_filtervar$Landform %in% keys, c("Ecological site ID", "Landform")]
+    } else if(key_type %in% c("parentMaterialOrigin")){
+      keys <- gsub("%20", " ", keys)
+      keys <- strsplit(keys, "\\|")[[1]]
+      
+      filtervar_table <- results_filtervar[results_filtervar$Origin %in% keys, c("Ecological site ID", "Origin")]
+    } else if(key_type %in% c("parentMaterialKind")){
+      keys <- gsub("%20", " ", keys)
+      keys <- strsplit(keys, "\\|")[[1]]
+      
+      filtervar_table <- results_filtervar[results_filtervar$Kind %in% keys, c("Ecological site ID", "Kind")]
+    } else if(key_type %in% c("surfaceTexture")){
+      keys <- gsub("%20", " ", keys)
+      keys <- strsplit(keys, "\\|")[[1]]
+      
+      filtervar_table <- results_filtervar[results_filtervar$`Texture class` %in% keys, c("Ecological site ID", "Texture class")]
+    }
+    
+    if(nrow(filtervar_table) == 0 & key_type %in% c("landform", "parentMaterialOrigin", "parentMaterialKind", "surfaceTexture") & verbose){
+      message("No data found with this key and key_type. The keys present in these ecological sites are:")
+      if(key_type == "landform"){
+        message(paste(collapse = ", ", unique(results_filtervar$Landform)))
+      } else if(key_type == "parentMaterialOrigin"){
+        message(paste(collapse = ", ", unique(results_filtervar$Origin)))
+      } else if(key_type == "parentMaterialKind"){
+        message(paste(collapse = ", ", unique(results_filtervar$Kind)))
+      } else if(key_type == "surfaceTexture"){
+        message(paste(collapse = ", ", unique(results_filtervar$`Texture class`)))
+      }
+    }
     
   } else {
-    necosites <- sum(sapply(data_list, length))
+    necosites <- sum(sapply(data_list, length)) # this is not strictly the number of ecosites, but it works
   }
-
+  
   # If no data is present, stop the function
   if(necosites == 0){
     stop("No data returned")
@@ -298,7 +409,8 @@ fetch_edit <- function(mlra,
   
   # Tall output is ready
   if(tall){
-    return(results_dataonly)
+    out <- results_dataonly
+
   } else {
     # Pivot data if tall is FALSE
     if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives", "mlra")){ # No pivot needed
@@ -406,9 +518,18 @@ fetch_edit <- function(mlra,
                                           values_from = c("Top depth", "Bottom depth", "Representative low", "Representative high", "Range low", "Range high"))
       
     }
-
-    return(results_pivot)
+    
+    out <- results_pivot
   }
+  
+  # Join filter table onto results
+  if(!is.null(key_type)){
+    if(key_table != current_table){ # this should be the tables not the key type
+      out <- dplyr::left_join(out, filtervar_table, by = "Ecological site ID")
+    }
+  }
+  
+  return(out)
 }
 
 #' Fetch list of MLRA codes and names
@@ -437,7 +558,7 @@ fetch_mlra_codes <- function(verbose = FALSE){
 #' @param verbose Inherited from fetch_edit
 
 #' @noRd
-edit_query <- function(query, timeout, user_agent, delay, verbose){
+edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsable_data){
   if (verbose) {
     message("Attempting to query EDIT with:")
     message(query)
@@ -534,7 +655,7 @@ edit_query <- function(query, timeout, user_agent, delay, verbose){
     if(!is.null(path_unparsable_data)){
       outname_badrows <- 
         file.path(path_unparsable_data, 
-                  paste0("unparsable_data_", mlra, "_", data_type, "_", Sys.Date(), ".txt"))
+                  paste0("unparsable_data_", data_type, "_", Sys.Date(), ".txt"))
       
       write.table(content_badrows, 
                   outname_badrows, 
