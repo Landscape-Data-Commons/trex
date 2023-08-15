@@ -9,31 +9,35 @@
 #' @param mlra Character string, vector of character strings, or in rare 
 #' instances NULL. The Major Land Resource Area (MLRA) or MLRAs to query. Only 
 #' records from these MLRAs will be returned. Exact MLRA codes are required, to 
-#' see a list of all MLRAs and ecological sites use mlra = NULL and data_type = 
-#' 'mlra'.
+#' see a list of all MLRAs and ecological sites use fetch_mlra_codes().
 #' @param data_type Restricted character string. The shorthand name of the type 
-#' of data to retrieve. Must be one of: 'mlra', 'ecosites', 'climate', 'landforms', 
-#' 'physiography interval', 'physiography nominal', 'physiography ordinal', 
-#' 'annual production', 'overstory', 'understory', 'rangeland', 'surface cover', 
-#' 'parent material', 'soil interval', 'soil nominal', 'soil ordinal', 
-#' 'soil profile', 'texture', 'state narratives', or 'transition narratives'.
-#' @param tall Optional logical. The function will output tall data if \code{TRUE}, 
-#' otherwise data will be in wide format. Defaults to \code{TRUE}. 
+#' of data to retrieve. Must be one of: 'mlra', 'ecosites', 'climate', 
+#' 'landforms', physiography interval', 'physiography nominal', 'physiography 
+#' ordinal', annual production', 'overstory', 'understory', 'rangeland', 
+#' 'surface cover', parent material', 'soil interval', 'soil nominal', 'soil 
+#' ordinal', soil profile', 'texture', 'state narratives', or 'transition 
+#' narratives'.
+#' 
+#' For information on what these tables contain, see 
+#' https://edit.jornada.nmsu.edu/resources/esd, under tab-delimited data.
+#' @param tall Optional logical. The function will output tall/long data if 
+#' \code{TRUE}, otherwise data will be in wide format. Defaults to \code{TRUE}. 
 #' @param keys Optional character vector. A character vector of all the values 
 #' to search for in \code{key_type}. The returned data will consist only of 
 #' records where \code{key_type} contained one of the key values, but there may 
 #' be keys that return no records. If \code{NULL} then the entire table will be 
 #' returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. Variable to query using 
-#' \code{keys}. Must be of of: 'precipitation', 'frostFreeDays', 'elevation', 
-#' 'slope', 'landform', 'parentMaterialOrigin', parentMaterialKind, or 'surfaceTexture.'
-#' Defaults to \code{NULL}.
-#' @param key_chunk_size Optional numeric. The number of keys to send in a single query. 
-#' Very long queries fail, so the keys may be chunked into smaller queries with 
-#' the results of all the queries being combined into a single output. Defaults 
-#' to \code{100}.
-#' @param timeout Optional numeric. The number of seconds to wait for a nonresponse from 
-#' the API before considering the query to have failed. Defaults to \code{60}.
+#' \code{keys}. Must be of of: 'precipitation', 'frost free days', 'elevation', 
+#' 'slope', 'landform', 'parent material origin', 'parent material kind', or 
+#' 'surface texture.' Defaults to \code{NULL}.
+#' @param key_chunk_size Optional numeric. The number of keys to send in a 
+#' single query. Very long queries fail, so the keys may be chunked into smaller 
+#' queries with the results of all the queries being combined into a single 
+#' output. Defaults to \code{100}.
+#' @param timeout Optional numeric. The number of seconds to wait for a 
+#' nonresponse from the API before considering the query to have failed. 
+#' Defaults to \code{60}.
 #' @param delay Optional numeric. The number of milliseconds to wait between 
 #' API queries. Querying too quickly can crash an API or get you locked out, so 
 #' adjust this as needed. Defaults to \code{500}.
@@ -49,20 +53,20 @@
 #' 
 #' @examples 
 #' # To retrieve ecological sites from MLRA 039X 
-#' fetch_edit(mlra = "039X", data_type = "ecosites")
+#' fetch_edit(mlra = "042B", data_type = "ecosites")
 #' # To retrieve ecological sites from MLRAs 039X and 040X
-#' fetch_edit(mlra = c("039X", "040X"), data_type = "ecosites")
+#' fetch_edit(mlra = c("042B", "042C"), data_type = "ecosites")
 #' # To retrieve climatic feature descriptions from all ecological sites in 
-#' # MLRAs 039X and 040X
-#' fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
+#' # MLRAs 042V and 042C
+#' fetch_edit(mlra = c("042B", "042C"), data_type = "climate")
 #' # To retrieve climatic feature descriptions from ecological sites that exist 
-#' # with slope between 15 and 30%, from MLRAs 039X and 040X.
-#' # Note: this includes all sites whose slope range overlaps with the given 
-#' # range. For example this will return sites with slope range 25-70%.
-#' fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
+#' # with slope between 15 and 30%, from MLRAs 042B and 042C
+#' # Note: this includes all sites where the key variable range overlaps with the given 
+#' # range. For example this will return sites with slope range 10-30%.
+#' fetch_edit(mlra = c("042B", "042C"), data_type = "climate", keys = "5:15", key_type = "slope")
 #' # Data defaults ot a tall format. To retrieve wide climate data from MLRAs 
-#' # 039X and 040X with slope range 15-30%
-#' fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
+#' # 042B and 042C with slope range 5-15%
+#' fetch_edit(mlra = c("042B", "042C"), data_type = "climate", keys = "5:15", key_type = "slope", tall = FALSE)
 #' # MLRA codes must be exact. To see all MLRA codes and names
 #' fetch_mlra_codes()
 #' 
@@ -153,7 +157,15 @@ fetch_edit <- function(mlra,
   }
   
   # Check key_type
-  valid_key_types <- data.frame(key_type = c("precipitation",
+  valid_key_types <- data.frame(key_name = c("precipitation",
+                                             "frost free days",
+                                             "elevation",
+                                             "slope",
+                                             "landform",
+                                             "parent material origin",
+                                             "parent material kind",
+                                             "surface texture"),
+                                key_type = c("precipitation",
                                              "frostFreeDays",
                                              "elevation",
                                              "slope",
@@ -172,13 +184,16 @@ fetch_edit <- function(mlra,
                                 ))
   
   if(!is.null(key_type)){
-    if (!(key_type %in% valid_key_types$key_type)){
+    if (!(key_type %in% valid_key_types$key_name)){
       stop(paste0("key_type must be one of the following character strings: ",
-                  paste(valid_key_types$key_type,
+                  paste(valid_key_types$key_name,
                         collapse = ", "),
                   "."))
     } else {
-      key_table <- valid_key_types[["table_name"]][valid_key_types$key_type == key_type]
+      key_table <- valid_key_types[["table_name"]][valid_key_types$key_name == key_type]
+      
+      # Reclassify key_type out of the reader-friendly format into the api format
+      key_type <- valid_key_types[["key_type"]][valid_key_types$key_name == key_type]
     }
   }
   
@@ -298,6 +313,10 @@ fetch_edit <- function(mlra,
     # Get the filter variable table
     results_filtervar <- dplyr::bind_rows(filtervartable_list)
     
+    if(nrow(results_filtervar) == 0) {
+      stop("No data found with this MLRA, key, and key_type")
+    }
+    
     # Find the filtered data, and prepare it to join onto output
     if(key_type %in% c("slope", "elevation", "precipitation", "frostFreeDays")){
       
@@ -307,15 +326,18 @@ fetch_edit <- function(mlra,
       
       if(key_type == "precipitation") key_type = "mean annual precipitation" 
       if(key_type == "frostFreeDays") key_type = "frost free days"
-      rangemin <- strsplit(keys, split = ":")[[1]][1]
-      rangemax <- strsplit(keys, split = ":")[[1]][2]
-       
+      rangemin <- as.numeric(strsplit(keys, split = ":")[[1]][1])
+      rangemax <- as.numeric(strsplit(keys, split = ":")[[1]][2])
+      
+      results_filtervar$`Representative low` <- as.numeric(results_filtervar$`Representative low`)
+      results_filtervar$`Representative high` <- as.numeric(results_filtervar$`Representative high`)
+      
       filtervar_table <- results_filtervar[results_filtervar$Property == key_type &  
-                                          ((results_filtervar$`Representative low` >= rangemin & results_filtervar$`Representative low` < rangemax &
-                                              !is.na(results_filtervar$`Representative low`)) | 
-                                          (results_filtervar$`Representative high` <= rangemax & results_filtervar$`Representative high` > rangemin &
-                                             !is.na(results_filtervar$`Representative high`))),
-      c("Ecological site ID", "Representative low", "Representative high")]
+                                             ((results_filtervar$`Representative low` >= rangemin & results_filtervar$`Representative low` < rangemax &
+                                                 !is.na(results_filtervar$`Representative low`)) | 
+                                                (results_filtervar$`Representative high` <= rangemax & results_filtervar$`Representative high` > rangemin &
+                                                   !is.na(results_filtervar$`Representative high`))),
+                                           c("Ecological site ID", "Representative low", "Representative high")]
       
       colnames(filtervar_table)[2:3] <- paste0(colnames(filtervar_table)[2:3], "_", key_type)
       
@@ -369,6 +391,7 @@ fetch_edit <- function(mlra,
   
   # Replace "" with NA
   results_dataonly[results_dataonly == ""] <- NA
+  results_dataonly[results_dataonly == "NA"] <- NA
   
   # Enforce numeric type
   results_dataonly <- suppressWarnings(
@@ -410,7 +433,7 @@ fetch_edit <- function(mlra,
   # Tall output is ready
   if(tall){
     out <- results_dataonly
-
+    
   } else {
     # Pivot data if tall is FALSE
     if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives", "mlra")){ # No pivot needed
@@ -524,8 +547,8 @@ fetch_edit <- function(mlra,
   
   # Join filter table onto results
   if(!is.null(key_type)){
-    if(key_table != current_table){ # this should be the tables not the key type
-      out <- dplyr::left_join(out, filtervar_table, by = "Ecological site ID")
+    if(key_table != current_table){
+      out <- dplyr::left_join(unique(out), unique(filtervar_table), by = "Ecological site ID")
     }
   }
   
@@ -533,15 +556,11 @@ fetch_edit <- function(mlra,
 }
 
 #' Fetch list of MLRA codes and names
-#' @description Fetch list of MLRA codes and names
-#' @param verbose Optional logical. If \code{TRUE} then the function will report 
-#' additional diagnostic messages as it executes. Defaults to \code{FALSE}.
-
-#' @returns A data frame with MLRA code, name, and ecological site count.
-
 #' @rdname fetch_edit
 #' @export fetch_mlra_codes
-fetch_mlra_codes <- function(verbose = FALSE){
+fetch_mlra_codes <- function(
+    verbose = FALSE
+){
   # This is a very simple function. But it makes life easier, because this 
   # particular code is not intuitive.
   fetch_edit(mlra = NULL, 
@@ -556,6 +575,7 @@ fetch_mlra_codes <- function(verbose = FALSE){
 #' @param user_agent Inherited from fetch_edit
 #' @param delay Inherited from fetch_edit
 #' @param verbose Inherited from fetch_edit
+#' @param path_unparsable_data Inherited from fetch_edit
 
 #' @noRd
 edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsable_data){
@@ -652,10 +672,16 @@ edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsab
     warning(paste0("Tabs present in data from following ecosites, making data from those ecosites unparsable. \n"), 
             paste(paste(ecosites_badrows, collapse = ", ")), "\n",
             "These data will be excluded from function output. If path_unparsable_data was provided, function will save these data to a text file.")
+    
+    # Have to get data_type back, out of the query
+    qsplit <- strsplit(strsplit(query, "\\/")[[1]], "\\.")
+    data_type <- qsplit[[length(qsplit)]][[1]]
+    
     if(!is.null(path_unparsable_data)){
+      outname_unparsable_data <- paste0("unparsable_data_", data_type, "_", gsub(":", "-", Sys.time()), ".txt")
       outname_badrows <- 
         file.path(path_unparsable_data, 
-                  paste0("unparsable_data_", data_type, "_", Sys.Date(), ".txt"))
+                  outname_unparsable_data)
       
       write.table(content_badrows, 
                   outname_badrows, 
@@ -666,7 +692,7 @@ edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsab
         message(paste("Saving file", outname_badrows))
       } 
     } else {
-      warning("path_unparsable_data not provided, unparsable data will not be saved.")
+      message("path_unparsable_data not provided, unparsable data will not be saved.")
     }
   }
   

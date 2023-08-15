@@ -31,10 +31,10 @@ For information about what these tables contain, see the EDIT developer resource
 
 ```{r, eval=FALSE}
 # This retrieves ecological site IDs and names from MLRA 039X, and reports queried URLs.
-edit_039X_ecosite <- fetch_edit(mlra = "039X", data_type = "ecosite", verbose = TRUE)
+edit_039X_ecosite <- fetch_edit(mlra = "039X", data_type = "ecosites", verbose = TRUE)
 
 # This retrieves ecological site IDs and names from MLRAs 039X and 040X, and reports queried URLs.
-edit_039X040X_ecosite <- fetch_edit(mlra = c("039X", "040X"), data_type = "ecosite", verbose = TRUE)
+edit_039X040X_ecosite <- fetch_edit(mlra = c("039X", "040X"), data_type = "ecosites", verbose = TRUE)
 
 # This retrieves climate data from MLRA 039X, and reports queried URLs.
 edit_039X_climate <- fetch_edit(mlra = "039X", data_type = "climate", verbose = TRUE)
@@ -64,6 +64,9 @@ edit_039X_ecosite_filter_landform <- fetch_edit(mlra = "039X", data_type = "ecos
 
 ```
 
+#### tall vs wide output
+Data can be returned in either a tall/long format, or a wide format. To control this, use the argument `tall`. This defaults to `TRUE`, returning tall data.
+
 #### key_chunk_size
 
 This argument determines how many of the provided keys will be used for a single API query. There's a character count limit for queries and so it's possible that a requesting data via a single query could exceed that limit. By setting `key_chunk_size`, you can control how many keys will be used in a query at a time. The default is `100` but you may find that you can raise that or need to lower it. Regardless, all the keys you provide will be used in a query and the data frame returned by the function will contain the results from every query. If you use `verbose = TRUE` you can see each query being made as the function reports back.
@@ -85,18 +88,8 @@ It is possible that the server may be slow to respond to a request, in which cas
 
 #### delay
 
-Very large requests with multiple MLRAs may overload the API server. In order to prevent this, the function will insert a delay between queries. This is defined in milliseconds, and defaults to 500ms. Like timeout, this is unlikely to ever need to be changed.
+Very large requests with multiple MLRAs may overload the API server. In order to prevent this, the function will insert a delay between queries. This is defined in milliseconds, and defaults to 500ms. Like `timeout` and `key_chunk_size`, this is unlikely to ever need to be changed.
 
 #### path_unparsable_data
 
-Unfortunately, due to data entry errors, tabs may be present in narrative data. Because the data returned by the EDIT API is tab-delimited, this renders narrative data from certain ecological sites unparsable. When this occurs, the function will output a warning, data from the offending ecological sites will be excluded from the final output, and will instead be saved to a text file in a folder provided by the argument `path_unparsable_data`. These data can be manually processed, but unfortunately they require a human eye to interpret. To recover these data, edit the text file, removing unnecessary tabs from the text columns, and read the file into R using read.delim. 
-
-```{r}
-error_data <- read.delim(file = "C:/Users/jrbrehm/Documents/Demo/unparsable_data_042B_state narratives_2023-08-10.txt", sep = "\t", quote = "", header = FALSE)
-head(error_data)
-
-cleaned_data <- read.delim(file = "C:/Users/jrbrehm/Documents/Demo/unparsable_data_042B_state narratives_2023-08-10_cleaned.txt", sep = "\t", quote = "", header = FALSE)
-head(cleaned_data)
-
-
-```
+Unfortunately, due to data entry errors, tabs may be present in narrative data. Because the data returned by the EDIT API is tab-delimited, this renders narrative data from certain ecological sites unparsable. When this occurs, the function will output a warning. Data from the offending ecological sites will be excluded from the final output, and will instead be saved to a text file in a folder provided by the argument `path_unparsable_data`. These data can be manually processed, but unfortunately they require a human eye to interpret. To recover these data, edit the text file, removing unnecessary tabs from the text columns, and read the file into R using read.delim. 

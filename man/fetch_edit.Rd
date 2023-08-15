@@ -24,18 +24,21 @@ fetch_mlra_codes(verbose = FALSE)
 \item{mlra}{Character string, vector of character strings, or in rare 
 instances NULL. The Major Land Resource Area (MLRA) or MLRAs to query. Only 
 records from these MLRAs will be returned. Exact MLRA codes are required, to 
-see a list of all MLRAs and ecological sites use mlra = NULL and data_type = 
-'mlra'.}
+see a list of all MLRAs and ecological sites use fetch_mlra_codes().}
 
 \item{data_type}{Restricted character string. The shorthand name of the type 
-of data to retrieve. Must be one of: 'mlra', 'ecosites', 'climate', 'landforms', 
-'physiography interval', 'physiography nominal', 'physiography ordinal', 
-'annual production', 'overstory', 'understory', 'rangeland', 'surface cover', 
-'parent material', 'soil interval', 'soil nominal', 'soil ordinal', 
-'soil profile', 'texture', 'state narratives', or 'transition narratives'.}
+of data to retrieve. Must be one of: 'mlra', 'ecosites', 'climate', 
+'landforms', physiography interval', 'physiography nominal', 'physiography 
+ordinal', annual production', 'overstory', 'understory', 'rangeland', 
+'surface cover', parent material', 'soil interval', 'soil nominal', 'soil 
+ordinal', soil profile', 'texture', 'state narratives', or 'transition 
+narratives'.
 
-\item{tall}{Optional logical. The function will output tall data if \code{TRUE}, 
-otherwise data will be in wide format. Defaults to \code{TRUE}.}
+For information on what these tables contain, see 
+https://edit.jornada.nmsu.edu/resources/esd, under tab-delimited data.}
+
+\item{tall}{Optional logical. The function will output tall/long data if 
+\code{TRUE}, otherwise data will be in wide format. Defaults to \code{TRUE}.}
 
 \item{keys}{Optional character vector. A character vector of all the values 
 to search for in \code{key_type}. The returned data will consist only of 
@@ -44,17 +47,18 @@ be keys that return no records. If \code{NULL} then the entire table will be
 returned. Defaults to \code{NULL}.}
 
 \item{key_type}{Optional character string. Variable to query using 
-\code{keys}. Must be of of: 'precipitation', 'frostFreeDays', 'elevation', 
-'slope', 'landform', 'parentMaterialOrigin', parentMaterialKind, or 'surfaceTexture.'
-Defaults to \code{NULL}.}
+\code{keys}. Must be of of: 'precipitation', 'frost free days', 'elevation', 
+'slope', 'landform', 'parent material origin', 'parent material kind', or 
+'surface texture.' Defaults to \code{NULL}.}
 
-\item{key_chunk_size}{Optional numeric. The number of keys to send in a single query. 
-Very long queries fail, so the keys may be chunked into smaller queries with 
-the results of all the queries being combined into a single output. Defaults 
-to \code{100}.}
+\item{key_chunk_size}{Optional numeric. The number of keys to send in a 
+single query. Very long queries fail, so the keys may be chunked into smaller 
+queries with the results of all the queries being combined into a single 
+output. Defaults to \code{100}.}
 
-\item{timeout}{Optional numeric. The number of seconds to wait for a nonresponse from 
-the API before considering the query to have failed. Defaults to \code{60}.}
+\item{timeout}{Optional numeric. The number of seconds to wait for a 
+nonresponse from the API before considering the query to have failed. 
+Defaults to \code{60}.}
 
 \item{delay}{Optional numeric. The number of milliseconds to wait between 
 API queries. Querying too quickly can crash an API or get you locked out, so 
@@ -71,30 +75,26 @@ to \code{NULL}, meaning unparsable data is not saved.}
 }
 \value{
 A data frame with the requested EDIT data.
-
-A data frame with MLRA code, name, and ecological site count.
 }
 \description{
 Fetch EDIT data
-
-Fetch list of MLRA codes and names
 }
 \examples{
 # To retrieve ecological sites from MLRA 039X 
-fetch_edit(mlra = "039X", data_type = "ecosites")
+fetch_edit(mlra = "042B", data_type = "ecosites")
 # To retrieve ecological sites from MLRAs 039X and 040X
-fetch_edit(mlra = c("039X", "040X"), data_type = "ecosites")
+fetch_edit(mlra = c("042B", "042C"), data_type = "ecosites")
 # To retrieve climatic feature descriptions from all ecological sites in 
-# MLRAs 039X and 040X
-fetch_edit(mlra = c("039X", "040X"), data_type = "climate")
+# MLRAs 042V and 042C
+fetch_edit(mlra = c("042B", "042C"), data_type = "climate")
 # To retrieve climatic feature descriptions from ecological sites that exist 
-# with slope between 15 and 30\%, from MLRAs 039X and 040X.
-# Note: this includes all sites whose slope range overlaps with the given 
-# range. For example this will return sites with slope range 25-70\%.
-fetch_edit(mlra = c("039X", "040X"), data_type = "climate", keys = "15:30", key_type = "slope")
+# with slope between 15 and 30\%, from MLRAs 042B and 042C
+# Note: this includes all sites where the key variable range overlaps with the given 
+# range. For example this will return sites with slope range 10-30\%.
+fetch_edit(mlra = c("042B", "042C"), data_type = "climate", keys = "5:15", key_type = "slope")
 # Data defaults ot a tall format. To retrieve wide climate data from MLRAs 
-# 039X and 040X with slope range 15-30\%
-fetch_edit(mlra = c("039X", "040X"), data_type = "rangeland", keys = "15:30", key_type = "slope", tall = FALSE)
+# 042B and 042C with slope range 5-15\%
+fetch_edit(mlra = c("042B", "042C"), data_type = "climate", keys = "5:15", key_type = "slope", tall = FALSE)
 # MLRA codes must be exact. To see all MLRA codes and names
 fetch_mlra_codes()
 
