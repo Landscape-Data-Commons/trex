@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Nelson Stauffer" />
+
+
+<title>Using Landscape Data Commons functions</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Using Landscape Data Commons functions</h1>
+<h4 class="author">Nelson Stauffer</h4>
+
+
+
+<p>The Landscape Data Commons (LDC) is a repository of
+publicly-available ecological data sets. These are accessible via API
+and <code>trex</code> contains functions to help download the data
+without needing to write API calls yourself. The core function is
+<code>fetch_ldc()</code> and there are two additional functions for
+common use-cases, <code>fetch_ldc_spatial()</code> and
+<code>fetch_ldc_ecosite()</code>.</p>
+<div id="fetch_ldc" class="section level2">
+<h2>fetch_ldc()</h2>
+<p>This is the main function for accessing the LDC API and is used by
+both <code>fetch_ldc_spatial()</code> and
+<code>fetch_ldc_ecosite()</code>. It takes the user-provided parameters
+to request data via the API to automatically build the relevant API
+call(s) and returns the results of the call(s). By default, the function
+will silently create however many API calls it needs to to retrieve the
+requested data, but you can always use the argument
+<code>verbose = TRUE</code> to see what steps it’s taking.</p>
+<div id="basic-use" class="section level3">
+<h3>Basic use</h3>
+<p>The minimum information the function requires to work is the
+<code>data_type</code> argument which corresponds to which table in the
+LDC the data are being requested from. If you specify a data type and
+nothing else, then the function will attempt to retrieve <em>all</em>
+data associated with the requested data type. This is not recommended
+for most data types because the number of records in tables of raw data
+can be very high. However, it would not be inappropriate to use with
+<code>data_type = &quot;header&quot;</code> or
+<code>data_type = &quot;indicators&quot;</code> because these two tables contain
+“only” one entry for each sampling event, being the metadata and
+calculated ecological indicators for each sampling event,
+respectively.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This retrieves all header information from the LDC</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Here verbose = TRUE so that the function will report back on what it&#39;s doing</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># at each step</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>all_ldc_headers <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">data_type =</span> <span class="st">&quot;header&quot;</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>                             <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># To retrieve all calculated ecological indicator values from the LDC</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>all_ldc_indicators <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">data_type =</span> <span class="st">&quot;indicators&quot;</span>)</span></code></pre></div>
+<p>When retrieving raw data, as from line-point intercept or canopy gap
+intercept, it is recommended that you also use the arguments
+<code>keys</code> and <code>key_type</code>. Using <code>key_type</code>
+lets you specify a variable/column in the table called for by
+<code>data_type</code>. You use <code>keys</code> to specify which value
+or values in particular in that variable to filter to. Every table in
+the LDC has different variables available (although some, like
+PrimaryKey, are found in more than one), so consult <a href="https://api.landscapedatacommons.org/api-docs">the
+documentation</a> if you’re uncertain which you can use for
+<code>key_type</code> for a given table.</p>
+<p>The “easiest” variable to use is PrimaryKey because it’s the one that
+ties all records from a sampling event together both within and across
+tables. That does require knowing what PrimaryKey values to use for
+<code>keys</code> though, so consider using
+<code>fetch_ldc_spatial()</code> or <code>fetch_ldc_ecosite()</code>
+(see sections below) to retrieve records without having to know any
+PrimaryKey values.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To retrieve all line-point intercept records associated with the sampling</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># event with the PrimaryKey value of 16060107170093802016-09-01</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>lpi_data_single <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">keys =</span> <span class="st">&quot;16060107170093802016-09-01&quot;</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                             <span class="at">key_type =</span> <span class="st">&quot;PrimaryKey&quot;</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                             <span class="at">data_type =</span> <span class="st">&quot;lpi&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># To retrieve all line-point intercept records associated with the sampling</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># event with the PrimaryKey value of 20198113201104B2, 2019885200311B1, and</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 2019885200311B2</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>lpi_data_multiple <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">keys =</span> <span class="fu">c</span>(<span class="st">&quot;20198113201104B2&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>                                        <span class="st">&quot;2019885200311B1&quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>                                        <span class="st">&quot;2019885200311B2&quot;</span>),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>                               <span class="at">key_type =</span> <span class="st">&quot;PrimaryKey&quot;</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>                               <span class="at">data_type =</span> <span class="st">&quot;lpi&quot;</span>)</span></code></pre></div>
+<p>If you find that <code>fetch_ldc()</code> is returning errors or
+unexpected results, try using <code>verbose = TRUE</code> which will
+force the function to report what it’s doing at each step, including the
+full queries that it’s sending to the LDC server. This can be
+indispensable for troubleshooting.</p>
+</div>
+<div id="advanced-use" class="section level3">
+<h3>Advanced use</h3>
+<p>There are additional arguments that you can supply to
+<code>fetch_ldc()</code> to help, especially if your queries are
+returning errors from the server.</p>
+<div id="key_chunk_size" class="section level4">
+<h4>key_chunk_size</h4>
+<p>This argument determines how many of the provided keys will be used
+for a single API query. There’s a character count limit for queries and
+so it’s possible that a requesting data via a single query could exceed
+that limit. By setting <code>key_chunk_size</code>, you can control how
+many keys will be used in a query at a time. The default is
+<code>100</code> but you may find that you can raise that or need to
+lower it. Regardless, all the keys you provide will be used in a query
+and the data frame returned by the function will contain the results
+from every query. If you use <code>verbose = TRUE</code> you can see
+each query being made as the function reports back.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving canopy gap intercept data for the first 500 PrimaryKey values found</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># in the header table</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Doing this in a single query will return an error, so key_chunk_size is set</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># explicitly although this is technically unnecessary because the default is 100</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>all_ldc_headers <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">data_type =</span> <span class="st">&quot;header&quot;</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                             <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>primarykeys_to_query <span class="ot">&lt;-</span> all_ldc_headers<span class="sc">$</span>PrimaryKey[<span class="dv">1</span><span class="sc">:</span><span class="dv">500</span>]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>gap_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">keys =</span> primarykeys_to_query,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>                      <span class="at">key_type =</span> <span class="st">&quot;PrimaryKey&quot;</span>,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data_type =</span> <span class="st">&quot;gap&quot;</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>                      <span class="at">key_chunk_size =</span> <span class="dv">100</span>)</span></code></pre></div>
+</div>
+<div id="timeout" class="section level4">
+<h4>timeout</h4>
+<p>It’s possible that the server may be slow to respond to a request, in
+which case you can adjust the time that the function waits before
+considering a nonresponse to be a failure. This is defined in seconds
+via the argument <code>timeout</code> and defaults to <code>60</code>.
+This is not likely to ever need to be changed because 60 seconds is very
+generous, but is available as an option.</p>
+</div>
+<div id="take" class="section level4">
+<h4>take</h4>
+<p>In addition to there being a character limit to query length, there
+is also an effective limit to the number of records that can be returned
+by a single query. Although there are several ways to get a 500 error
+from the server, the most likely is that a single API query returned too
+many records. By using <code>take</code>, you can limit the number of
+records returned by each query made by the function. The function will
+automatically make as many queries as it needs to retrieve the data in
+chunks not exceeding the size determined by <code>take</code>. The
+default value is <code>NULL</code> meaning that there’s no limit to how
+many records a single query will return. If you do get a 500 error, try
+setting <code>take</code> to <code>10000</code> or fewer.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving *all* line-point intercept data in the LDC would result in a 500 error</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># from the server because there are millions of records. Setting take = 10000</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># should solve that problem by making multiple queries instead of one.</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">NOTE</span><span class="co">: It is absolutely not recommended that you attempt to download the entire</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># data set this way. Please contact the data managers at the LDC if you need a full</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># data set.</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>lpi_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">data_type =</span> <span class="st">&quot;lpi&quot;</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                      <span class="at">take =</span> <span class="dv">10000</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>                      <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="exact_match" class="section level4">
+<h4>exact_match</h4>
+<p>Sometimes you may want to retrieve data using a key that’s a partial
+match rather than an exact match. If you set <code>exact_match</code> to
+<code>FALSE</code>, then the records returned by the query will be all
+where the value provided as <code>keys</code> is <em>part of</em> the
+values in the variable indicated by <code>key_type</code>. For example,
+if you want to retrieve all the indicator values from sampling events
+that took place in a Major Land Resource Area (MLRA), that’s not a
+separate variable in any of the tables, but is a part of every
+ecological site ID. You could therefore request all records in which the
+ecological site ID contains a specific MLRA code using
+<code>exact_match = FALSE</code>. Using this argument does require
+deeper knowledge of what kinds of values are stored in each variable, so
+use it with caution.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving indicator values for all sampling events that took place in</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># the MLRA 036X (southwestern Colorado, northern New Mexico, and southeastern Utah)</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># This will return all records where the value in EcologicalSiteID contains &quot;036X&quot;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>mlra_036X_indicators <span class="ot">&lt;-</span> <span class="fu">fetch_ldc</span>(<span class="at">keys =</span> <span class="st">&quot;036X&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">key_type =</span> <span class="st">&quot;EcologicalSiteID&quot;</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">data_type =</span> <span class="st">&quot;indicators&quot;</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">exact_match =</span> <span class="st">&quot;FALSE&quot;</span>)</span></code></pre></div>
+</div>
+</div>
+</div>
+<div id="fetch_ldc_spatial" class="section level2">
+<h2>fetch_ldc_spatial()</h2>
+<p>The LDC API does not currently directly support spatial queries, but
+<code>fetch_ldc_spatial()</code> makes it possible to retrieve records
+which fall within user-supplied polygons. This is a wrapper function for
+<code>fetch_ldc()</code> that simply automates a few steps to streamline
+spatial querying. It does this by converting the header table from the
+LDC into a POINT sf object and returning all requested data that
+correspond to the <code>PrimaryKey</code> values associated with points
+that intersect the provided polygons.</p>
+<p>The two required arguments are <code>polygons</code> and
+<code>data_type</code>. The polygons must be an sf POLYGON or
+MULTIPOLYGON object (see the <a href="https://cran.r-project.org/web/packages/sf/index.html">package
+sf</a> for additional information) and <code>data_type</code> must
+correspond to one of the tables in the LDC (see
+<code>fetch_ldc()</code>). There is no need to combine or dissolve the
+polygons or to specify an attribute or variable associated with them:
+the function will return all points that intersect any polygon in the
+object.</p>
+<p>Like <code>fetch_ldc()</code>, this function also accepts the
+arguments <code>key_chunk_size</code>, <code>timeout</code>,
+<code>take</code>, and <code>verbose</code> (see above). In particular,
+<code>key_chunk_size</code> and <code>take</code> may be important to
+specify or adjust because the function is first identifying relevant
+<code>PrimaryKey</code> values and then using those for followup queries
+to retrieve the requested data. That means that, depending on the scale
+of the polygons and the density of data, there may be hundreds of
+associated keys and tens of thousands of records to return. If the
+server is returning 500 errors, start by changing those values.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving indicator values for all sampling events that took place in</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># vegetation removal treatments of interest</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Read in the polygons as an sf object</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>treatment_polygons <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(<span class="at">dsn =</span> <span class="st">&quot;vegetation_treatments.gdb&quot;</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">layer =</span> <span class="st">&quot;removal_treatment_polygons&quot;</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Use the sf object to retrieve only relevant data</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>treatment_indicator_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc_spatial</span>(<span class="at">polygons =</span> treatment_polygons,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">data_type =</span> <span class="st">&quot;indicators&quot;</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving line-point intercept data for all sampling events that took place</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># in vegetation removal treatments</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>treatment_lpi_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc_spatial</span>(<span class="at">polygons =</span> treatment_polygons,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">data_type =</span> <span class="st">&quot;lpi&quot;</span>,</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>                                        <span class="co"># The LPI table has hundreds of records</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>                                        <span class="co"># per sampling event, so take may need</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>                                        <span class="co"># to be specified to avoid server errors</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">take =</span> <span class="dv">10000</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="fetch_ldc_ecosite" class="section level2">
+<h2>fetch_ldc_ecosite()</h2>
+<p>One of the most common attributes used to request data is the
+associated ecological site ID, but the variable
+<code>EcologicalSiteID</code> only appears in some tables (the headers
+and indicators). This function is a wrapper for <code>fetch_ldc()</code>
+that automates first identifying all <code>PrimaryKey</code> values
+associated with the specified ecological site ID(s) and then retrieving
+the requested data associated with those keys.</p>
+<p>The minimum required arguments are just <code>keys</code> which must
+will be compared against the values in <code>EcologicalSiteID</code> in
+the headers table and <code>data_type</code> which specified which table
+to retrieve associated records from. Additional supported arguments are
+<code>key_chunk_size</code>, <code>timeout</code>, <code>take</code>,
+<code>exact_match</code>, and <code>verbose</code> (see above).</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving gap values for all sampling events that took place in</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># the ecological sites R036XB006NM and R036XB007NM</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ecosite_gap_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc_ecosite</span>(<span class="at">keys =</span> <span class="fu">c</span>(<span class="st">&quot;R036XB006NM&quot;</span>, <span class="st">&quot;R036XB007NM&quot;</span>),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                              <span class="at">data_type =</span> <span class="st">&quot;gap&quot;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                              <span class="at">take =</span> <span class="dv">10000</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>                              <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Retrieving soil stability values for all sampling events that took place in</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># the MLRA 036X (southwestern Colorado, northern New Mexico, and southeastern Utah)</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># This will return all records where the value in EcologicalSiteID contains &quot;036X&quot;</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>mlra_gap_data <span class="ot">&lt;-</span> <span class="fu">fetch_ldc_ecosite</span>(<span class="at">keys =</span> <span class="st">&quot;036X&quot;</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">data_type =</span> <span class="st">&quot;soilstability&quot;</span>,</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">exact_match =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
