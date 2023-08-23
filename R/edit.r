@@ -41,11 +41,12 @@
 #' @param delay Optional numeric. The number of milliseconds to wait between 
 #' API queries. Querying too quickly can crash an API or get you locked out, so 
 #' adjust this as needed. Defaults to \code{500}.
-#' @param path_unparsable_data Optional character string. Because delimiters are 
-#' sometimes present in narrative data, data from certain ecological sites are 
-#' not parsable, and must be excluded from function output. If provided, then 
-#' the function will save unparsable data to a folder specified here. Defaults 
-#' to \code{NULL}, meaning unparsable data is not saved. 
+#' @param path_unparsable_data Optional character string. Because the delimiting 
+#' character is sometimes entered into narrative text data, data from certain 
+#' ecological sites are not parsable and must be excluded from function output. 
+#' If provided, then the function will save unparsable data to a folder 
+#' specified here for manual processing. Defaults to \code{NULL}, meaning 
+#' unparsable data is not saved. 
 #' @param verbose Optional logical. If \code{TRUE} then the function will report 
 #' additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 
@@ -82,13 +83,13 @@ fetch_edit <- function(mlra,
                        timeout = 60,
                        delay = 500,
                        verbose = FALSE,
-                       path_unparsable_data = NULL){
+                       path_unparsable_data = NULL
+                       ){
   
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
   # Check data_type
-  valid_tables <- data.frame(data_type = c("mlra",
-                                           "ecosites",
+  valid_tables <- data.frame(data_type = c("ecosites",
                                            "climate",
                                            "landforms",
                                            "physiography interval",
@@ -107,8 +108,7 @@ fetch_edit <- function(mlra,
                                            "texture",
                                            "state narratives",
                                            "transition narratives"),
-                             table_name = c(NA,
-                                            "class-list",
+                             table_name = c("class-list",
                                             "climatic-features",
                                             "landforms",
                                             "physiographic-interval-properties",
@@ -139,8 +139,12 @@ fetch_edit <- function(mlra,
   current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
   
   # Check MLRA
-  if(is.null(mlra) & data_type != "mlra"){
-    stop("MLRA is required. To see a list of all MLRAs, use mlra = NULL and data_type = 'mlra', or the convenience function fetch_mlra()")
+  if(is.null(mlra)){
+    stop("MLRA is required. To see a list of all MLRAs, use fetch_mlra_codes()")
+  }
+  
+  if(length(intersect(mlra, fetch_mlra_codes(verbose = FALSE)$MLRA)) == 0){
+    stop("All provided MLRAs are invalid. To see a list of all MLRAs, use fetch_mlra_codes()")
   }
   
   # Check input classes
@@ -206,31 +210,23 @@ fetch_edit <- function(mlra,
     delay <- delay * 10^6
   }
   
-  # If data_type is mlra and no mlra is provided, fetch all ecosites 
-  if(data_type == "mlra" & is.null(mlra)){
-    base_url <- "https://edit.jornada.nmsu.edu/services/downloads/esd/geo-unit-list.txt"
-    
-  } else {
-    ecosite_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
-                          mlra,
-                          "/class-list.txt")
-    
-    base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
-                       mlra,
-                       "/", 
-                       current_table,
-                       ".txt")  
-    
-    if(!is.null(key_type)){
-      keytable_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
-                             mlra,
-                             "/", 
-                             key_table,
-                             ".txt")
-    }
-    
-  }
+  ecosite_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
+                        mlra,
+                        "/class-list.txt")
   
+  base_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
+                     mlra,
+                     "/", 
+                     current_table,
+                     ".txt")  
+  
+  if(!is.null(key_type)){
+    keytable_url <- paste0("https://edit.jornada.nmsu.edu/services/downloads/esd/",
+                           mlra,
+                           "/", 
+                           key_table,
+                           ".txt")
+  }
   
   if(is.null(keys)) {
     # If there are no keys, grab the whole table
@@ -364,16 +360,20 @@ fetch_edit <- function(mlra,
       filtervar_table <- results_filtervar[results_filtervar$`Texture class` %in% keys, c("Ecological site ID", "Texture class")]
     }
     
+    # Replace "" with NA
+    filtervar_table[filtervar_table == ""] <- NA
+    filtervar_table[filtervar_table == "NA"] <- NA
+    
     if(nrow(filtervar_table) == 0 & key_type %in% c("landform", "parentMaterialOrigin", "parentMaterialKind", "surfaceTexture") & verbose){
       message("No data found with this key and key_type. The keys present in these ecological sites are:")
       if(key_type == "landform"){
-        message(paste(collapse = ", ", unique(results_filtervar$Landform)))
+        message(paste0("'", collapse = ", ", sort(unique(results_filtervar$Landform)), "'"))
       } else if(key_type == "parentMaterialOrigin"){
-        message(paste(collapse = ", ", unique(results_filtervar$Origin)))
+        message(paste0("'", collapse = ", ", sort(unique(results_filtervar$Origin)), "'"))
       } else if(key_type == "parentMaterialKind"){
-        message(paste(collapse = ", ", unique(results_filtervar$Kind)))
+        message(paste0("'", collapse = ", ", sort(unique(results_filtervar$Kind)), "'"))
       } else if(key_type == "surfaceTexture"){
-        message(paste(collapse = ", ", unique(results_filtervar$`Texture class`)))
+        message(paste0("'", collapse = ", ", sort(unique(results_filtervar$`Texture class`)), "'"))
       }
     }
     
@@ -383,7 +383,7 @@ fetch_edit <- function(mlra,
   
   # If no data is present, stop the function
   if(necosites == 0){
-    stop("No data returned")
+    stop("No data returned (all queries)")
   }
   
   # Turn the list of data frames into one data frame
@@ -436,7 +436,7 @@ fetch_edit <- function(mlra,
     
   } else {
     # Pivot data if tall is FALSE
-    if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives", "mlra")){ # No pivot needed
+    if(data_type %in% c("landforms", "ecosites", "parent material", "texture", "state narratives", "transition narratives")){ # No pivot needed
       results_pivot <- results_dataonly 
       if(verbose){
         message("No pivot necessary for this data_type. Tall and wide output are identical.")
@@ -446,7 +446,7 @@ fetch_edit <- function(mlra,
       results_dataonly[results_dataonly$`Measurement unit` == "" | 
                          is.na(results_dataonly$`Measurement unit`) | 
                          is.null(results_dataonly$`Measurement unit`), 
-                       "Measurement unit"] <- "unknown unit"
+                       "Measurement unit"] <- "Unknown unit"
       
       results_pivot <- tidyr::pivot_wider(results_dataonly, 
                                           id_cols = c("MLRA", "Ecological site ID", "Ecological site legacy ID"),
@@ -547,8 +547,17 @@ fetch_edit <- function(mlra,
   
   # Join filter table onto results
   if(!is.null(key_type)){
+    
     if(key_table != current_table){
-      out <- dplyr::left_join(unique(out), unique(filtervar_table), by = "Ecological site ID")
+      out <- dplyr::right_join(unique(out), unique(na.omit(filtervar_table)), by = "Ecological site ID")
+    } else { 
+      # if the key table and current table are the same, then the filter variable is already in the data. 
+      # However, we still need to remove the rows with NAs in the filter variable
+      out <- subset(out, `Ecological site ID` %in% unique(na.omit(filtervar_table$`Ecological site ID`)))
+    }
+    
+    if(nrow(out) == 0){
+      stop("No ecological sites within this MLRA fit your filter criteria")
     }
   }
   
@@ -561,12 +570,17 @@ fetch_edit <- function(mlra,
 fetch_mlra_codes <- function(
     verbose = FALSE
 ){
-  # This is a very simple function. But it makes life easier, because this 
-  # particular code is not intuitive.
-  fetch_edit(mlra = NULL, 
-             data_type = "mlra", 
-             verbose = verbose)
+  edit_query(query = "https://edit.jornada.nmsu.edu/services/downloads/esd/geo-unit-list.txt", 
+             timeout = 60, 
+             user_agent = "http://github.com/Landscape-Data-Commons/trex",
+             verbose = verbose,
+             delay = 500
+  )
 }
+
+
+
+
 
 #' EDIT API query function
 #' @description EDIT API query function
@@ -591,8 +605,16 @@ edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsab
   
   # What if there's an error????
   if (httr::http_error(response)) {
-    stop(paste0("Query failed with status ",
-                response$status_code))
+    if(response$status_code == "404"){
+      errmessage <- paste0("Query failed with status ",
+                           response$status_code, "\n",
+                           "MLRA code is likely invalid. Refer to output of fetch_mlra_codes() to see list of valid MLRAs")
+    } else {
+      errmessage <- paste0("Query failed with status ",
+                           response$status_code)
+    }
+    
+    stop(errmessage)
   }
   
   # Grab only the data portion
@@ -692,7 +714,9 @@ edit_query <- function(query, timeout, user_agent, delay, verbose, path_unparsab
         message(paste("Saving file", outname_badrows))
       } 
     } else {
-      message("path_unparsable_data not provided, unparsable data will not be saved.")
+      if(verbose){
+        message("path_unparsable_data not provided, unparsable data will not be saved.")
+      }
     }
   }
   
