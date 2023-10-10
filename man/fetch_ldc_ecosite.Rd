@@ -36,13 +36,15 @@ fetch_ldc_ecosite(
 A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 }
 \description{
-This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs.
+This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs. Most tables in the LDC do not include ecological site information and so this function will identify the PrimaryKeys associated with the requested ecological site(s) and retrieve the requested data associated with those PrimaryKeys.
+
+When you already know the associated PrimaryKeys, use \code{\link[=fetch_ldc]{fetch_ldc()}} instead. If you want to retrieve data associated with polygons, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
 }
 \examples{
 # To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
 fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")
 }
 \seealso{
-* To query for data by key values, use \code{\link[=fetch_ldc]{fetch_ldc()}}.
-* To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
+\code{\link[=fetch_ldc]{fetch_ldc()}} will query for data by any key values.
+\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
 }
