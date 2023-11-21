@@ -268,7 +268,7 @@ fetch_ldc <- function(keys = NULL,
                             message(paste0("Retrieving records in chunks of ", take))
                           }
                           
-                          if (grepl(query, pattern = "?")) {
+                          if (grepl(X, pattern = "?")) {
                             query <- paste0(X, "&take=", take)
                           } else {
                             query <- paste0(X, "?take=", take)
