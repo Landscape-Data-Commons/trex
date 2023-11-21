@@ -148,6 +148,9 @@ fetch_ldc <- function(keys = NULL,
     keys_vector <- gsub(x = keys_vector,
                  pattern = "[&]",
                  replacement = "%26")
+    keys_vector <- gsub(x = keys_vector,
+                        pattern = " ",
+                        replacement = "%20")
     
     if (verbose & !identical(keys_vector_original, keys_vector)) {
       warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
