@@ -1,6 +1,6 @@
 # trex (**T**errestrial **R**angeland data **EX**traction)
 
-<img src="man/figures/logo.png" align="right" height="140"/>
+<img src="https://github.com/Landscape-Data-Commons/trex/blob/logo/man/figures/logo.png" align="right" height="140"/>
 
 ## Installation
 
