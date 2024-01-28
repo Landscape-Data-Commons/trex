@@ -1,5 +1,7 @@
 # trex (**T**errestrial **R**angeland data **EX**traction)
 
+<img src="man/figures/logo.png" align="right" height="140"/>
+
 ## Installation
 
 To install trex and all documentation, use:
