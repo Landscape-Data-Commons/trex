@@ -91,6 +91,9 @@ fetch_edit <- function(mlra = NULL,
     warning("Both mlra and ecosite have been provided. Ignoring mlra and extracting MLRA code(s) from ecosite.")
     mlra <- unique(unlist(stringr::str_extract(string = ecosite,
                                                pattern = "(?<=[RFW]?)\\d{3}[A-Z]")))
+  } else if (!is.null(ecosite)) {
+    mlra <- unique(unlist(stringr::str_extract(string = ecosite,
+                                               pattern = "(?<=[RFW]?)\\d{3}[A-Z]")))
   }
   
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
