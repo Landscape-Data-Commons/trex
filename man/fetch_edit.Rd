@@ -6,7 +6,8 @@
 \title{Fetch EDIT data}
 \usage{
 fetch_edit(
-  mlra,
+  mlra = NULL,
+  ecosite = NULL,
   data_type,
   tall = TRUE,
   keys = NULL,

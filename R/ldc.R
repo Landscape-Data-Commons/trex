@@ -8,6 +8,8 @@
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
+#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
+#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
@@ -28,6 +30,8 @@
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
                       data_type,
+                      username = NULL,
+                      password = NULL,
                       key_chunk_size = 100,
                       timeout = 60,
                       take = NULL,
@@ -113,6 +117,25 @@ fetch_ldc <- function(keys = NULL,
     # Convert the value from milliseconds to nanoseconds because we'll be using
     # microbenchmark::get_nanotime() which returns the current time in nanoseconds
     delay <- delay * 10^6
+  }
+  
+  # Check the user credentials
+  if (!identical(is.null(username), is.null(password))) {
+    if (is.null(username)) {
+      warning("No username provided. Ignoring provided password and retrieving only data which do not require credentials.")
+    }
+    if (is.null(password)) {
+      warning("No password provided. Ignoring provided username and retrieving only data which do not require credentials.")
+    }
+  } else if (!is.null(username) & !is.null(password)) {
+    if (class(username) != "character" | length(username) > 1) {
+      stop("Provided username must be a single character string.")
+    }
+    if (class(password) != "character" | length(password) > 1) {
+      stop("Provided username must be a single character string.")
+    }
+  } else if (verbose) {
+    message("No credentials provided. Retrieving only data which do not require credentials.")
   }
   
   # If there are no keys, grab the whole table
@@ -217,8 +240,10 @@ fetch_ldc <- function(keys = NULL,
                       timeout = timeout,
                       take = take,
                       user_agent = user_agent,
+                      username = username,
+                      password = password,
                       verbose = verbose,
-                      FUN = function(X, data_type, take, timeout, user_agent, verbose){
+                      FUN = function(X, data_type, take, timeout, user_agent, username, password, verbose){
                         
                         # We handle things differently if the data type is header
                         # because the header table doesn't have an rid variable
@@ -231,9 +256,18 @@ fetch_ldc <- function(keys = NULL,
                           }
                           
                           # Full query response
-                          response <- httr::GET(X,
-                                                config = list(httr::timeout(timeout),
-                                                              httr::user_agent(user_agent)))
+                          if (!is.null(username) & !is.null(password)) {
+                            response <- httr::GET(X,
+                                                  config = list(httr::timeout(60),
+                                                                httr::user_agent(user_agent),
+                                                                httr::authenticate(user = username,
+                                                                                   password = password)))
+                          } else {
+                            response <- httr::GET(X,
+                                                  config = list(httr::timeout(timeout),
+                                                                httr::user_agent(user_agent)))
+                          }
+                          
                           
                           # What if there's an error????
                           if (httr::http_error(response)) {
@@ -402,6 +436,8 @@ fetch_ldc <- function(keys = NULL,
 #' @description A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC. Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{\link[=fetch_ldc]{fetch_ldc()}} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
 #' @param polygons Polygon sf object. The polygon or polygons describing the area to retrieve data from. Only records from sampling locations falling within this area will be returned.
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
+#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
+#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
@@ -417,6 +453,8 @@ fetch_ldc <- function(keys = NULL,
 #' @export
 fetch_ldc_spatial <- function(polygons,
                               data_type,
+                              username = NULL,
+                              password = NULL,
                               key_chunk_size = 100,
                               timeout = 60,
                               take = NULL,
@@ -432,7 +470,9 @@ fetch_ldc_spatial <- function(polygons,
   if (verbose) {
     message("Fetching the header information from the LDC.")
   }
-  headers_df <- fetch_ldc(data_type = "header")
+  headers_df <- fetch_ldc(data_type = "header",
+                          username = username,
+                          password = password)
   
   # We know that the header info includes coordinates in NAD83, so we can easily
   # convert the data frame into an sf object
@@ -468,6 +508,8 @@ fetch_ldc_spatial <- function(polygons,
     fetch_ldc(keys = intersected_primarykeys,
               key_type = "PrimaryKey",
               data_type = data_type,
+              username = username,
+              password = password,
               key_chunk_size = key_chunk_size,
               timeout = timeout,
               exact_match = TRUE,
@@ -480,6 +522,8 @@ fetch_ldc_spatial <- function(polygons,
 #' @description This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs.
 #' @param keys Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.
 #' @param data_type Character string. The type of data to query. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
+#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
+#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
@@ -496,6 +540,8 @@ fetch_ldc_spatial <- function(polygons,
 #' @export
 fetch_ldc_ecosite <- function(keys,
                               data_type,
+                              username = NULL,
+                              password = NULL,
                               key_chunk_size = 100,
                               timeout = 60,
                               take = NULL,
@@ -510,6 +556,8 @@ fetch_ldc_ecosite <- function(keys,
   current_headers <- fetch_ldc(keys = keys,
                                key_type = "EcologicalSiteID",
                                data_type = "header",
+                               username = username,
+                               password = password,
                                key_chunk_size = key_chunk_size,
                                timeout = timeout,
                                take = NULL,
@@ -534,6 +582,8 @@ fetch_ldc_ecosite <- function(keys,
   fetch_ldc(keys = current_primarykeys,
             key_type = "PrimaryKey",
             data_type = data_type,
+            username = username,
+            password = password,
             key_chunk_size = key_chunk_size,
             timeout = timeout,
             take = take,
