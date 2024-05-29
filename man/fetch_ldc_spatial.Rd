@@ -13,6 +13,7 @@ fetch_ldc_spatial(
   timeout = 60,
   take = NULL,
   delay = 500,
+  return_spatial = TRUE,
   verbose = FALSE
 )
 }
@@ -32,6 +33,8 @@ fetch_ldc_spatial(
 \item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.}
 
 \item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.}
+
+\item{return_spatial}{Logical. If \code{TRUE} then the returned data will be an sf object. Otherwise if this is \code{FALSE} it will be a simple data frame. Defaults to \code{TRUE}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
