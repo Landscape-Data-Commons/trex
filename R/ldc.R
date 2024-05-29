@@ -459,6 +459,7 @@ fetch_ldc_spatial <- function(polygons,
                               timeout = 60,
                               take = NULL,
                               delay =  500,
+                              return_spatial = TRUE,
                               verbose = FALSE) {
   if (!("sf" %in% class(polygons))) {
     stop("polygons must be a polygon sf object")
@@ -503,9 +504,12 @@ fetch_ldc_spatial <- function(polygons,
   
   # Grab only the data associated with the PrimaryKey values we've got
   if (data_type == "header") {
-    headers_df[headers_df$PrimaryKey %in% intersected_primarykeys, ]
+    output <- headers_sf[headers_sf$PrimaryKey %in% intersected_primarykeys, ]
+    if (!return_spatial) {
+      output <- sf::st_drop_geometry(output)
+    }
   } else {
-    fetch_ldc(keys = intersected_primarykeys,
+    output <- fetch_ldc(keys = intersected_primarykeys,
               key_type = "PrimaryKey",
               data_type = data_type,
               username = username,
@@ -515,7 +519,14 @@ fetch_ldc_spatial <- function(polygons,
               exact_match = TRUE,
               delay = delay,
               verbose = verbose)
+    if (return_spatial) {
+      output <- dplyr::inner_join(x = dplyr::select(.data = headers_sf,
+                                                    PrimaryKey),
+                                  y = output)
+    }
   }
+  
+  output
 }
 
 #' Fetching data from the Landscape Data Commons via API query using ecological site IDs
