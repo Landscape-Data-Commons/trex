@@ -3,6 +3,54 @@
 # httr
 # jsonlite
 
+get_ldc_token <- function(username,
+                          password) {
+  if (is.character(username)) {
+    if (length(username) > 1) {
+      stop("Your username must be a single character string.")
+    }
+  } else {
+    stop("Your username must be a single character string.")
+  }
+  if (is.character(password)) {
+    if (length(password) > 1) {
+      stop("Your password must be a single character string.")
+    }
+  } else {
+    stop("Your password must be a single character string.")
+  }
+  
+  # Attempt to get an authentication response
+  authentication_response <- httr::POST(url = "https://oox5sjuicqhezohcpnbsesp32y0yrcbm.lambda-url.us-east-1.on.aws/",
+                                        body = list(username = username, 
+                                                    password = password),
+                                        encode = "json")
+  
+  # What if there's an error????
+  if (httr::http_error(authentication_response)) {
+    stop(paste0("Retrieving authentication token from the API failed with status ",
+                authentication_response$status_code))
+  }
+  
+  output_raw_character <- rawToChar(authentication_response[["content"]])
+  
+  if (grepl(x = output_raw_character, pattern = "^Error")) {
+    stop(output_raw_character)
+  }
+  
+  
+  output <- jsonlite::fromJSON(txt = rawToChar(authentication_response[["content"]]))[["AuthenticationResult"]]
+  
+  # We'll add an expiration time so we can check the need for a refreshed token
+  # without making an API call that gets rejected.
+  # This cuts 5 seconds off just as a bit of buffer.
+  output[["expiration_time"]] <- Sys.time() + output[["ExpiresIn"]] - 5
+  # Turns out this was overengineered, but keeping it for future reference.
+  # output[["expiration_time"]] <- lubridate::as_date(lubridate::seconds(Sys.time()) + lubridate::seconds(output[["ExpiresIn"]] - 5))
+  
+  output
+}
+
 #' Fetching data from the Landscape Data Commons via API query
 #' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
@@ -11,7 +59,7 @@
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
 #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
-#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
 #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
@@ -32,8 +80,9 @@ fetch_ldc <- function(keys = NULL,
                       data_type,
                       username = NULL,
                       password = NULL,
+                      token = NULL,
                       key_chunk_size = 100,
-                      timeout = 60,
+                      timeout = 300,
                       take = NULL,
                       delay = 500,
                       exact_match = TRUE,
@@ -120,23 +169,48 @@ fetch_ldc <- function(keys = NULL,
   }
   
   # Check the user credentials
-  if (!identical(is.null(username), is.null(password))) {
-    if (is.null(username)) {
-      warning("No username provided. Ignoring provided password and retrieving only data which do not require credentials.")
+  if (!is.null(token)) {
+    if (class(token) == "list") {
+      if (!("IdToken" %in% names(token))) {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      } else if (class(token[["IdToken"]]) != "character") {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      }
+      if (!("expiration_time" %in% names(token))) {
+        token[["expiration_time"]] <- Sys.time() + 3600
+      }
+    } else if (class(token) == "character") {
+      if (length(token) != 1) {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      }
+      token <- list(IdToken = token,
+                    # This is just a rough guess on the validity window of the
+                    # token so we don't have to do more complicated handling
+                    # later.
+                    expiration_time = Sys.time() + 3600)
     }
-    if (is.null(password)) {
-      warning("No password provided. Ignoring provided username and retrieving only data which do not require credentials.")
+  } else {
+    if (!identical(is.null(username), is.null(password))) {
+      if (is.null(username)) {
+        warning("No token or username provided. Ignoring provided password and retrieving only data which do not require credentials.")
+      }
+      if (is.null(password)) {
+        warning("No token or password provided. Ignoring provided username and retrieving only data which do not require credentials.")
+      }
+    } else if (!is.null(username) & !is.null(password)) {
+      if (class(username) != "character" | length(username) > 1) {
+        stop("Provided username must be a single character string.")
+      }
+      if (class(password) != "character" | length(password) > 1) {
+        stop("Provided username must be a single character string.")
+      }
+      token <- get_ldc_token(username = username,
+                             password = password)
+    } else if (verbose) {
+      message("No credentials provided. Retrieving only data which do not require credentials.")
     }
-  } else if (!is.null(username) & !is.null(password)) {
-    if (class(username) != "character" | length(username) > 1) {
-      stop("Provided username must be a single character string.")
-    }
-    if (class(password) != "character" | length(password) > 1) {
-      stop("Provided username must be a single character string.")
-    }
-  } else if (verbose) {
-    message("No credentials provided. Retrieving only data which do not require credentials.")
   }
+  
   
   # If there are no keys, grab the whole table
   if (is.null(keys)) {
@@ -167,8 +241,8 @@ fetch_ldc <- function(keys = NULL,
     # them with the unicode reference %26
     keys_vector_original <- keys_vector
     keys_vector <- gsub(x = keys_vector,
-                 pattern = "[&]",
-                 replacement = "%26")
+                        pattern = "[&]",
+                        replacement = "%26")
     
     if (verbose & !identical(keys_vector_original, keys_vector)) {
       warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
@@ -229,183 +303,238 @@ fetch_ldc <- function(keys = NULL,
                         "Like=",
                         keys_chunks)
     }
-    
   }
   
   # Use the queries to snag data
   # This produces a list of results where each index in the list contains the
-  # results of one query
-  data_list <- lapply(X = queries,
-                      data_type = data_type,
-                      timeout = timeout,
-                      take = take,
-                      user_agent = user_agent,
-                      username = username,
-                      password = password,
-                      verbose = verbose,
-                      FUN = function(X, data_type, take, timeout, user_agent, username, password, verbose){
-                        
-                        # We handle things differently if the data type is header
-                        # because the header table doesn't have an rid variable
-                        # and we can't use take or cursor options without that
-                        
-                        if (data_type == "header" | is.null(take)) {
-                          if (verbose) {
-                            message("Attempting to query LDC with:")
-                            message(X)
-                          }
-                          
-                          # Full query response
-                          if (!is.null(username) & !is.null(password)) {
-                            response <- httr::GET(X,
-                                                  config = list(httr::timeout(60),
-                                                                httr::user_agent(user_agent),
-                                                                httr::authenticate(user = username,
-                                                                                   password = password)))
-                          } else {
-                            response <- httr::GET(X,
-                                                  config = list(httr::timeout(timeout),
-                                                                httr::user_agent(user_agent)))
-                          }
-                          
-                          
-                          # What if there's an error????
-                          if (httr::http_error(response)) {
-                            if (response$status_code == 500) {
-                              stop(paste0("Query failed with status ",
-                                          response$status_code,
-                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
-                            } else {
-                              stop(paste0("Query failed with status ",
-                                          response$status_code))
-                            }
-                          }
-                          
-                          # Grab only the data portion
-                          response_content <- response[["content"]]
-                          # Convert from raw to character
-                          content_character <- rawToChar(response_content)
-                          # Convert from character to data frame
-                          content_df <- jsonlite::fromJSON(content_character)
-                          
-                          content_df
-                        } else {
-                          # OKAY! So handling using take and cursor options for
-                          # anything non-header
-                          # The first query needs to not specify the cursor position
-                          # and then after that we'll keep trying with the last
-                          # rid value + 1 as the cursor until we get an empty
-                          # response
-                          if (verbose) {
-                            message(paste0("Retrieving records in chunks of ", take))
-                          }
-                          
-                          query <- paste0(X, "&take=", take)
-                          
-                          if (verbose) {
-                            message("Attempting to query LDC with:")
-                            message(query)
-                          }
-                          
-                          # Full query response
-                          response <- httr::GET(query,
-                                                config = list(httr::timeout(timeout),
-                                                              httr::user_agent(user_agent)))
-                          
-                          # What if there's an error????
-                          if (httr::http_error(response)) {
-                            if (response$status_code == 500) {
-                              stop(paste0("Query failed with status ",
-                                          response$status_code,
-                                          " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
-                            } else {
-                              stop(paste0("Query failed with status ",
-                                          response$status_code))
-                            }
-                          }
-                          
-                          # Grab only the data portion
-                          response_content <- response[["content"]]
-                          # Convert from raw to character
-                          content_character <- rawToChar(response_content)
-                          # Convert from character to data frame
-                          current_content_df <- jsonlite::fromJSON(content_character)
-                          
-                          content_df_list <- list(current_content_df)
-                          
-                          # Here's where we start iterating as long as we're still
-                          # getting data
-                          # So while the last returned response wasn't empty,
-                          # keep requesting the next response where the cursor
-                          # is set to the rid following the the highest rid in
-                          # the last chunk
-                          while (length(content_df_list[[length(content_df_list)]]) > 0) {
-                            # And to avoid flooding the API server with requests,
-                            # we'll put in a delay here.
-                            # This gets the current time then spins its wheels,
-                            # checking repeatedly to see if enough time has
-                            # elapsed, at which point it moves on
-                            start_time <- microbenchmark::get_nanotime()
-                            repeat {
-                              current_time <- microbenchmark::get_nanotime()
-                              elapsed_time <- current_time - start_time
-                              if (elapsed_time > delay) {
-                                break
-                              }
-                            }
-                            
-                            
-                            last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
-                            
-                            query <- paste0(X, "&take=", take, "&cursor=", last_rid)
-                            
-                            if (verbose) {
-                              message("Attempting to query LDC with:")
-                              message(query)
-                            }
-                            
-                            # Full query response
-                            response <- httr::GET(query,
-                                                  config = list(httr::timeout(timeout),
-                                                                httr::user_agent(user_agent)))
-                            
-                            # What if there's an error????
-                            if (httr::http_error(response)) {
-                              stop(paste0("Query failed with status ",
-                                          response$status_code))
-                            }
-                            
-                            # Grab only the data portion
-                            response_content <- response[["content"]]
-                            # Convert from raw to character
-                            content_character <- rawToChar(response_content)
-                            # Convert from character to data frame
-                            current_content_df <- jsonlite::fromJSON(content_character)
-                            
-                            # Bind that onto the end of the list
-                            # The data are wrapped in list() so that it gets added
-                            # as a data frame instead of as a vector for each variable
-                            content_df_list <- c(content_df_list, list(current_content_df))
-                          }
-                          content_df <- do.call(rbind,
-                                                content_df_list)
-                          
-                          # And another delay for between individual queries
-                          # that were generated by the key chunking instead of
-                          # by take
-                          start_time <- microbenchmark::get_nanotime()
-                          repeat {
-                            current_time <- microbenchmark::get_nanotime()
-                            elapsed_time <- current_time - start_time
-                            if (elapsed_time > delay) {
-                              break
-                            }
-                          }
-                          
-                          content_df
-                        }
-                        
-                      })
+  # results of one query.
+  # It uses a loop instead of a lapply() so that we can check if the token has
+  # expired each time we use it.
+  data_list <- list()
+  
+  for (current_query in queries) {
+    # The token might expire and need refreshing!
+    if (!is.null(token)) {
+      if (Sys.time() > token[["expiration_time"]]) {
+        if (verbose) {
+          message("Current API bearer authorization token has expired. Attempting to request a new one.")
+        }
+        if (!is.null(username) & !is.null(password)) {
+          token <- get_ldc_token(username = username,
+                                 password = password)
+        } else {
+          warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
+          token <- NULL
+        }
+      }
+    }
+    
+    # We handle things differently if the data type is header
+    # because the header table doesn't have an rid variable
+    # and we can't use take or cursor options without that
+    
+    if (data_type == "header" | is.null(take)) {
+      if (verbose) {
+        message("Attempting to query LDC with:")
+        message(current_query)
+      }
+      
+      # Full query response using the token if we've got one.
+      if (is.null(token)) {
+        response <- httr::GET(url = current_query,
+                              httr::timeout(timeout),
+                              httr::user_agent(user_agent))
+        
+      } else {
+        response <- httr::GET(url = current_query,
+                              httr::timeout(timeout),
+                              httr::user_agent(user_agent),
+                              httr::add_headers(Authorization = paste("Bearer",
+                                                                      token[["IdToken"]])))
+        response <- httr::GET(url = current_query,
+                              httr::add_headers(Authorization = paste("Bearer",
+                                                                      token[["IdToken"]])))
+      }
+      # if (!is.null(username) & !is.null(password)) {
+      #   response <- httr::GET(current_query,
+      #                         config = list(httr::timeout(timeout),
+      #                                       httr::user_agent(user_agent),
+      #                                       httr::authenticate(user = username,
+      #                                                          password = password)))
+      # } else {
+      #   response <- httr::GET(current_query,
+      #                         config = list(httr::timeout(timeout),
+      #                                       httr::user_agent(user_agent)))
+      # }
+      
+      
+      # What if there's an error????
+      if (httr::http_error(response)) {
+        if (response$status_code == 500) {
+          stop(paste0("Query failed with status ",
+                      response$status_code,
+                      " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+        } else {
+          stop(paste0("Query failed with status ",
+                      response$status_code))
+        }
+      }
+      
+      # Grab only the data portion
+      response_content <- response[["content"]]
+      # Convert from raw to character
+      content_character <- rawToChar(response_content)
+      # Convert from character to data frame
+      content_df <- jsonlite::fromJSON(content_character)
+      
+    } else {
+      # OKAY! So handling using take and cursor options for
+      # anything non-header
+      # The first query needs to not specify the cursor position
+      # and then after that we'll keep trying with the last
+      # rid value + 1 as the cursor until we get an empty
+      # response
+      if (verbose) {
+        message(paste0("Retrieving records in chunks of ", take))
+      }
+      
+      query <- paste0(current_query, "&take=", take)
+      
+      if (verbose) {
+        message("Attempting to query LDC with:")
+        message(query)
+      }
+      
+      # Querying with the token if we've got it.
+      if (is.null(token)) {
+        response <- httr::GET(url = query,
+                              httr::timeout(timeout),
+                                            httr::user_agent(user_agent))
+        
+      } else {
+        response <- httr::GET(url = query,
+                              httr::timeout(timeout),
+                                            httr::user_agent(user_agent),
+                                            httr::add_headers(Authorization = paste("Bearer",
+                                                                                    token[["IdToken"]])))
+      }
+      
+      # What if there's an error????
+      if (httr::http_error(response)) {
+        if (response$status_code == 500) {
+          stop(paste0("Query failed with status ",
+                      response$status_code,
+                      " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+        } else {
+          stop(paste0("Query failed with status ",
+                      response$status_code))
+        }
+      }
+      
+      # Grab only the data portion
+      response_content <- response[["content"]]
+      # Convert from raw to character
+      content_character <- rawToChar(response_content)
+      # Convert from character to data frame
+      current_content_df <- jsonlite::fromJSON(content_character)
+      
+      content_df_list <- list(current_content_df)
+      
+      # Here's where we start iterating as long as we're still
+      # getting data
+      # So while the last returned response wasn't empty,
+      # keep requesting the next response where the cursor
+      # is set to the rid following the the highest rid in
+      # the last chunk
+      while (length(content_df_list[[length(content_df_list)]]) > 0) {
+        # And to avoid flooding the API server with requests,
+        # we'll put in a delay here.
+        # This gets the current time then spins its wheels,
+        # checking repeatedly to see if enough time has
+        # elapsed, at which point it moves on
+        start_time <- microbenchmark::get_nanotime()
+        repeat {
+          current_time <- microbenchmark::get_nanotime()
+          elapsed_time <- current_time - start_time
+          if (elapsed_time > delay) {
+            break
+          }
+        }
+        
+        
+        last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
+        
+        query <- paste0(current_query, "&take=", take, "&cursor=", last_rid)
+        
+        if (verbose) {
+          message("Attempting to query LDC with:")
+          message(query)
+        }
+        
+        # The token might expire and need refreshing!
+        # This exists up above too, but we need it here in the while loop
+        # because we might be in the while for long enough for a token to expire
+        if (Sys.time() > token[["expiration_time"]]) {
+          if (verbose) {
+            message("Current API bearer authorization token has expired. Attempting to request a new one.")
+          }
+          if (!is.null(username) & !is.null(password)) {
+            token <- get_ldc_token(username = username,
+                                   password = password)
+          }
+        }
+        
+        # Querying with the token if we've got it.
+        if (is.null(token)) {
+          response <- httr::GET(url = query,
+                                httr::timeout(timeout),
+                                              httr::user_agent(user_agent))
+          
+        } else {
+          response <- httr::GET(url = query,
+                                httr::timeout(timeout),
+                                              httr::user_agent(user_agent),
+                                              httr::add_headers(Authorization = paste("Bearer",
+                                                                                      token[["IdToken"]])))
+        }
+        
+        # What if there's an error????
+        if (httr::http_error(response)) {
+          stop(paste0("Query failed with status ",
+                      response$status_code))
+        }
+        
+        # Grab only the data portion
+        response_content <- response[["content"]]
+        # Convert from raw to character
+        content_character <- rawToChar(response_content)
+        # Convert from character to data frame
+        current_content_df <- jsonlite::fromJSON(content_character)
+        
+        # Bind that onto the end of the list
+        # The data are wrapped in list() so that it gets added
+        # as a data frame instead of as a vector for each variable
+        content_df_list <- c(content_df_list, list(current_content_df))
+      }
+      content_df <- do.call(rbind,
+                            content_df_list)
+      
+      # And another delay for between individual queries
+      # that were generated by the key chunking instead of
+      # by take
+      start_time <- microbenchmark::get_nanotime()
+      repeat {
+        current_time <- microbenchmark::get_nanotime()
+        elapsed_time <- current_time - start_time
+        if (elapsed_time > delay) {
+          break
+        }
+      }
+    }
+    # Append whatever it is that we got back
+    data_list <- c(data_list, list(content_df))
+  }
+  
   
   # Combine all the results of the queries
   data <- do.call(rbind,
@@ -439,7 +568,7 @@ fetch_ldc <- function(keys = NULL,
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
 #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
-#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
 #' @param return_spatial Logical. If \code{TRUE} then the returned data will be an sf object. Otherwise if this is \code{FALSE} it will be a simple data frame. Defaults to \code{TRUE}.
@@ -454,10 +583,11 @@ fetch_ldc <- function(keys = NULL,
 #' @export
 fetch_ldc_spatial <- function(polygons,
                               data_type,
+                              token = NULL,
                               username = NULL,
                               password = NULL,
                               key_chunk_size = 100,
-                              timeout = 60,
+                              timeout = 300,
                               take = NULL,
                               delay =  500,
                               return_spatial = TRUE,
@@ -511,15 +641,16 @@ fetch_ldc_spatial <- function(polygons,
     }
   } else {
     output <- fetch_ldc(keys = intersected_primarykeys,
-              key_type = "PrimaryKey",
-              data_type = data_type,
-              username = username,
-              password = password,
-              key_chunk_size = key_chunk_size,
-              timeout = timeout,
-              exact_match = TRUE,
-              delay = delay,
-              verbose = verbose)
+                        key_type = "PrimaryKey",
+                        data_type = data_type,
+                        token = token,
+                        username = username,
+                        password = password,
+                        key_chunk_size = key_chunk_size,
+                        timeout = timeout,
+                        exact_match = TRUE,
+                        delay = delay,
+                        verbose = verbose)
     if (return_spatial) {
       output <- dplyr::inner_join(x = dplyr::select(.data = headers_sf,
                                                     PrimaryKey),
@@ -537,7 +668,7 @@ fetch_ldc_spatial <- function(polygons,
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
 #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
-#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
 #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
@@ -552,10 +683,11 @@ fetch_ldc_spatial <- function(polygons,
 #' @export
 fetch_ldc_ecosite <- function(keys,
                               data_type,
+                              token = NULL,
                               username = NULL,
                               password = NULL,
                               key_chunk_size = 100,
-                              timeout = 60,
+                              timeout = 300,
                               take = NULL,
                               delay = 500,
                               exact_match = TRUE,
@@ -568,6 +700,7 @@ fetch_ldc_ecosite <- function(keys,
   current_headers <- fetch_ldc(keys = keys,
                                key_type = "EcologicalSiteID",
                                data_type = "header",
+                               token = token,
                                username = username,
                                password = password,
                                key_chunk_size = key_chunk_size,
@@ -594,6 +727,7 @@ fetch_ldc_ecosite <- function(keys,
   fetch_ldc(keys = current_primarykeys,
             key_type = "PrimaryKey",
             data_type = data_type,
+            token = token,
             username = username,
             password = password,
             key_chunk_size = key_chunk_size,
@@ -651,7 +785,7 @@ coerce_ldc <- function(data,
     
     # Full query results
     response <- httr::GET(query,
-                          config = httr::timeout(60))
+                          httr::timeout(timeout))
     # What if there's an error????
     if (httr::http_error(response)) {
       stop(paste0("Retrieving schema from the API failed with status ",
