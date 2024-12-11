@@ -74,7 +74,8 @@
 #' @rdname fetch_edit
 #' @export fetch_edit
 
-fetch_edit <- function(mlra,
+fetch_edit <- function(mlra = NULL,
+                       ecosite = NULL,
                        data_type,
                        tall = TRUE,
                        keys = NULL,
@@ -85,6 +86,17 @@ fetch_edit <- function(mlra,
                        verbose = FALSE,
                        path_unparsable_data = NULL
                        ){
+  
+  if (is.null(mlra) & is.null(ecosite)) {
+    stop("You must provide either at least one MLRA code or at least one ecological site ID.")
+  } else if (!is.null(mlra) & !is.null(ecosite)) {
+    warning("Both mlra and ecosite have been provided. Ignoring mlra and extracting MLRA code(s) from ecosite.")
+    mlra <- unique(unlist(stringr::str_extract(string = ecosite,
+                                               pattern = "(?<=[RFW]?)\\d{3}[A-Z]")))
+  } else if (!is.null(ecosite)) {
+    mlra <- unique(unlist(stringr::str_extract(string = ecosite,
+                                               pattern = "(?<=[RFW]?)\\d{3}[A-Z]")))
+  }
   
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
@@ -559,6 +571,12 @@ fetch_edit <- function(mlra,
     if(nrow(out) == 0){
       stop("No ecological sites within this MLRA fit your filter criteria")
     }
+  }
+  
+  # Strip back to requested ecosites if requested
+  if (!is.null(ecosite)) {
+    out <- dplyr::filter(.data = out,
+                         `Ecological site ID` %in% ecosite)
   }
   
   return(out)
