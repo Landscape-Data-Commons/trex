@@ -53,6 +53,8 @@ get_ldc_token <- function(username,
 
 #' Fetching data from the Landscape Data Commons via API query
 #' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
+#' 
+#' There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
 #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param key_type Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
@@ -66,8 +68,8 @@ get_ldc_token <- function(username,
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
-#' * To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
-#' * To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
+#' \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
+#' \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}} will query for data by ecological site ID.
 #' @examples
 #' # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
 #' headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
@@ -241,8 +243,11 @@ fetch_ldc <- function(keys = NULL,
     # them with the unicode reference %26
     keys_vector_original <- keys_vector
     keys_vector <- gsub(x = keys_vector,
-                        pattern = "[&]",
-                        replacement = "%26")
+                 pattern = "[&]",
+                 replacement = "%26")
+    keys_vector <- gsub(x = keys_vector,
+                        pattern = " ",
+                        replacement = "%20")
     
     if (verbose & !identical(keys_vector_original, keys_vector)) {
       warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
@@ -562,7 +567,11 @@ fetch_ldc <- function(keys = NULL,
 }
 
 #' Fetching data from the Landscape Data Commons using spatial constraints
-#' @description A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC. Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{\link[=fetch_ldc]{fetch_ldc()}} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
+#' @description A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC.
+#' 
+#' Every time this function is called, it retrieves ALL header information via the API, which can be slow. If you plan to do multiple spatial queries back-to-back, it'll be faster to retrieve the headers with \code{\link[=fetch_ldc]{fetch_ldc()}} once, convert them to an sf object with \code{sf::st_as_sf()}, then use \code{sf:st_intersection()} repeatedly on that sf object to find the PrimaryKey values for each set of polygons and query the API using the PrimaryKeys.
+#' 
+#' When you already know the associated PrimaryKeys, use \code{\link[=fetch_ldc]{fetch_ldc()}} instead. If you want to retrieve data associated with specific ecological site IDs, use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
 #' @param polygons Polygon sf object. The polygon or polygons describing the area to retrieve data from. Only records from sampling locations falling within this area will be returned.
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
@@ -575,8 +584,8 @@ fetch_ldc <- function(keys = NULL,
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which came from locations within \code{polygons}.
 #' @seealso
-#' * To query for data by key values, use \code{\link[=fetch_ldc]{fetch_ldc()}}.
-#' * To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
+#' \code{\link[=fetch_ldc]{fetch_ldc()}} will query for data by any key values.
+#' \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}} will query for data by ecological site ID.
 #' @examples
 #' To retrieve all LPI records for sampling locations found within a given set of polygons provided as an sf object
 #' fetch_ldc_spatial(polygons = polygons_sf, data_type = "lpi")
@@ -662,7 +671,9 @@ fetch_ldc_spatial <- function(polygons,
 }
 
 #' Fetching data from the Landscape Data Commons via API query using ecological site IDs
-#' @description This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs.
+#' @description This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs. Most tables in the LDC do not include ecological site information and so this function will identify the PrimaryKeys associated with the requested ecological site(s) and retrieve the requested data associated with those PrimaryKeys.
+#' 
+#' When you already know the associated PrimaryKeys, use \code{\link[=fetch_ldc]{fetch_ldc()}} instead. If you want to retrieve data associated with polygons, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
 #' @param keys Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.
 #' @param data_type Character string. The type of data to query. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
@@ -675,8 +686,8 @@ fetch_ldc_spatial <- function(polygons,
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
-#' * To query for data by key values, use \code{\link[=fetch_ldc]{fetch_ldc()}}.
-#' * To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
+#' \code{\link[=fetch_ldc]{fetch_ldc()}} will query for data by any key values.
+#' \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
 #' @examples
 #' # To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
 #' fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")

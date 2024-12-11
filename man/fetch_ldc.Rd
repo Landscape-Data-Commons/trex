@@ -46,6 +46,8 @@ A data frame of records from the requested \code{data_type} which contain the va
 }
 \description{
 A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
+
+There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
 }
 \examples{
 # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
@@ -55,6 +57,6 @@ relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data
 lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
 }
 \seealso{
-* To query for data by spatial location, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
-* To retrieve data by ecological site ID from a table that doesn't include ecological site ID use \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}.
+\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
+\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}} will query for data by ecological site ID.
 }

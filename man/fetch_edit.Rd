@@ -68,11 +68,12 @@ adjust this as needed. Defaults to \code{500}.}
 \item{verbose}{Optional logical. If \code{TRUE} then the function will report 
 additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 
-\item{path_unparsable_data}{Optional character string. Because delimiters are 
-sometimes present in narrative data, data from certain ecological sites are 
-not parsable, and must be excluded from function output. If provided, then 
-the function will save unparsable data to a folder specified here. Defaults 
-to \code{NULL}, meaning unparsable data is not saved.}
+\item{path_unparsable_data}{Optional character string. Because the delimiting 
+character is sometimes entered into narrative text data, data from certain 
+ecological sites are not parsable and must be excluded from function output. 
+If provided, then the function will save unparsable data to a folder 
+specified here for manual processing. Defaults to \code{NULL}, meaning 
+unparsable data is not saved.}
 }
 \value{
 A data frame with the requested EDIT data.
