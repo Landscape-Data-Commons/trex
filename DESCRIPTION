@@ -21,5 +21,5 @@ Imports:
     stats,
     microbenchmark
 Suggests: knitr, rmarkdown
-Depends: R (>= 4.4)
+Depends: R (>= 3.3.0)
 VignetteBuilder: knitr
