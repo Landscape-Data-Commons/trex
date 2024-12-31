@@ -3,6 +3,44 @@
 # httr
 # jsonlite
 
+#' Get an access token for the Landscape Data Commons API
+#' @description A function for retrieving an access token for the Landscape Data
+#' Commons API based on a username and password. The token is returned as a
+#' specially-formatted list that can be used as the `token` argument in
+#' [fetch_ldc()], [fetch_ldc_spatial()], and [fetch_ldc_ecosite()].
+#' 
+#' Some data in the LDC are fully available to the public and can be accessed
+#' without an account, but some are restricted to accounts with specific
+#' permissions and will not be returned without a valid token. The `username`
+#' and `password` values must belong to an account which has already been
+#' created at https://api.landscapedatacommons.org/login/.
+#' 
+#' Best practice for using this function is to use it to retrieve and store a
+#' token in the working environment and then provide it to the fetching
+#' functions in addition to the username and password. They will use the token
+#' unless it has expired in which case they will retrieve a new token
+#' automatically using the provided `username` and `password`. If a fetching
+#' function informs you that it retrieved a new token, continuing to fetch will
+#' retrieve a new token every time because the new tokens are internal to the
+#' fetching process so consider rerunning the `get_ldc_token()` to get a new
+#' token to reuse before continuing to fetch. A token is valid for one hour
+#' after being retrieved.
+#'
+#' @param username Character string. The username tied to the Landscape Data Commons API account to use.
+#' @param password Character string. The password to supply to the Landscape Data Commons API.
+#' @returns A list structured for use as the `token` argument in the [fetch_ldc()] family of functions.
+#' @examples
+#' # To get a token to use for multiple data fetchings:
+#' current_token <- get_ldc_token(username = "account email address",
+#'                                password = "account password")
+#' # To use the token to fetch the first 100 LPI records available to the account:
+#' lpi_data <- fetch_ldc(data_type = "lpi",
+#'                       token = current_token,
+#'                       username = "account email address",
+#'                       password = "account password",
+#'                       take = 100)
+#' @export
+
 get_ldc_token <- function(username,
                           password) {
   if (is.character(username)) {
