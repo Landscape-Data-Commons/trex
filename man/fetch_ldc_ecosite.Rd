@@ -7,10 +7,11 @@
 fetch_ldc_ecosite(
   keys,
   data_type,
+  token = NULL,
   username = NULL,
   password = NULL,
   key_chunk_size = 100,
-  timeout = 60,
+  timeout = 300,
   take = NULL,
   delay = 500,
   exact_match = TRUE,
@@ -28,7 +29,7 @@ fetch_ldc_ecosite(
 
 \item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
 
-\item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{60}.}
+\item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
 
 \item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.}
 
