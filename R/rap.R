@@ -113,8 +113,8 @@ fetch_rap <- function(polygons,
   # names and the rest of them are the values for those variables.
   # We can go through all of the vectors of values, turn each into its own data
   # frame, and then bind them all together into a single output data frame.
-  data <- lapply(X = raw_data_list_test[-1],
-                 var_names = unlist(raw_data_list_test[[1]]),
+  data <- lapply(X = raw_data_list[-1],
+                 var_names = unlist(raw_data_list[[1]]),
                  FUN = function(X, var_names){
                    output <- as.data.frame(x = X)
                    names(output) <- var_names
