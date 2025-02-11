@@ -5,6 +5,7 @@
 #' @param mask Logical. If \code{TRUE} then the request to the API will return data only about areas NOT identified as cropland, water, or human development. Defaults to \code{TRUE}.
 #' @param year Optional numeric. If this corresponds to a year for which there are RAP data (1986 through the last completed calendar year) then the query will return only data for that year. If it's \code{NULL} then data for every available year will be returned. Defaults to \code{NULL}.
 #' @returns A data frame containing the requested data for the provided polygon.
+#' @export
 fetch_rap <- function(polygons,
                       data_type = "cover",
                       mask = TRUE,
