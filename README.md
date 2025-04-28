@@ -14,7 +14,7 @@ Publicly available ecological data are important for research and land managemen
 
 ### Landscape Data Commons
 
-The core LDC function is `fetch_ldc()` which retrieves data found in a specified table within the LDC. The minimum required argument is simply `data_type` which identifies the table to pull data from and—if no other arguments are given—will return *all* the data in the table. For information on which tables exist in the LDC and what variables they contain, please refer to the [LDC API documentation](https://api.landscapedatacommons.org/api-docs).
+The core LDC function is `fetch_ldc()` which retrieves data found in a specified table within the LDC. The minimum required argument is simply `data_type` which identifies the table to pull data from and—if no other arguments are given—will return *all* the data in the table. For information on which tables exist in the LDC and what variables they contain, please refer to the [LDC API documentation](https://api.landscapedatacommons.org/docs).
 
 ```
 # This retrieves all header information from the LDC
