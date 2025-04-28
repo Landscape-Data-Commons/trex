@@ -123,7 +123,7 @@ fetch_ldc <- function(keys = NULL,
                       token = NULL,
                       key_chunk_size = 100,
                       timeout = 300,
-                      take = NULL,
+                      take = 10000,
                       delay = 500,
                       exact_match = TRUE,
                       verbose = FALSE) {
@@ -451,6 +451,13 @@ fetch_ldc <- function(keys = NULL,
         message(paste0("Retrieving records in chunks of ", take))
       }
       
+      # Gotta make sure that we use a ? if there are no keys being passed or a
+      # "&" if there are.
+      query_contains_questionmark <- stringr::str_detect(string = current_query,
+                                                         pattern = paste0(base_url,
+                                                                          current_table,
+                                                                          "\\?"))
+      
       query <- paste0(current_query, "&take=", take)
       
       if (verbose) {
@@ -527,13 +534,18 @@ fetch_ldc <- function(keys = NULL,
         # The token might expire and need refreshing!
         # This exists up above too, but we need it here in the while loop
         # because we might be in the while for long enough for a token to expire
-        if (Sys.time() > token[["expiration_time"]]) {
-          if (verbose) {
-            message("Current API bearer authorization token has expired. Attempting to request a new one.")
-          }
-          if (!is.null(username) & !is.null(password)) {
-            token <- get_ldc_token(username = username,
-                                   password = password)
+        if (!is.null(token)) {
+          if (Sys.time() > token[["expiration_time"]]) {
+            if (verbose) {
+              message("Current API bearer authorization token has expired. Attempting to request a new one.")
+            }
+            if (!is.null(username) & !is.null(password)) {
+              token <- get_ldc_token(username = username,
+                                     password = password)
+            } else {
+              warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
+              token <- NULL
+            }
           }
         }
         
