@@ -291,8 +291,8 @@ fetch_ldc <- function(keys = NULL,
     # them with the unicode reference %26
     keys_vector_original <- keys_vector
     keys_vector <- gsub(x = keys_vector,
-                 pattern = "[&]",
-                 replacement = "%26")
+                        pattern = "[&]",
+                        replacement = "%26")
     keys_vector <- gsub(x = keys_vector,
                         pattern = " ",
                         replacement = "%20")
@@ -457,26 +457,40 @@ fetch_ldc <- function(keys = NULL,
                                                          pattern = paste0(base_url,
                                                                           current_table,
                                                                           "\\?"))
+      if (verbose) {
+        if (query_contains_questionmark) {
+          message("This query already has a ?, using an &.")
+        } else {
+          message("This query does not already have a ?, using an ?.")
+        }
+      }
       
-      query <- paste0(current_query, "&take=", take)
+      
+      # So this uses either ? or & to add the take value to the query depending
+      # on if there was a ? present in the query already.
+      current_query <- paste0(current_query,
+                              ifelse(test = query_contains_questionmark,
+                                     yes = "&",
+                                     no = "?"),
+                              "take=", take)
       
       if (verbose) {
         message("Attempting to query LDC with:")
-        message(query)
+        message(current_query)
       }
       
       # Querying with the token if we've got it.
       if (is.null(token)) {
-        response <- httr::GET(url = query,
+        response <- httr::GET(url = current_query,
                               httr::timeout(timeout),
-                                            httr::user_agent(user_agent))
+                              httr::user_agent(user_agent))
         
       } else {
-        response <- httr::GET(url = query,
+        response <- httr::GET(url = current_query,
                               httr::timeout(timeout),
-                                            httr::user_agent(user_agent),
-                                            httr::add_headers(Authorization = paste("Bearer",
-                                                                                    token[["IdToken"]])))
+                              httr::user_agent(user_agent),
+                              httr::add_headers(Authorization = paste("Bearer",
+                                                                      token[["IdToken"]])))
       }
       
       # What if there's an error????
