@@ -520,7 +520,7 @@ fetch_ldc <- function(keys = NULL,
       # keep requesting the next response where the cursor
       # is set to the rid following the the highest rid in
       # the last chunk
-      while (length(content_df_list[[length(content_df_list)]]) > 0) {
+      while (nrow(content_df_list[[length(content_df_list)]]) == take) {
         # And to avoid flooding the API server with requests,
         # we'll put in a delay here.
         # This gets the current time then spins its wheels,
@@ -536,13 +536,16 @@ fetch_ldc <- function(keys = NULL,
         }
         
         
-        last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
+        # last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
+        cursor_position <- sapply(X = content_df_list,
+                                  FUN = nrow) |>
+          sum()
         
-        query <- paste0(current_query, "&take=", take, "&cursor=", last_rid)
+        current_next_query <- paste0(current_query, "&cursor=", cursor_position)
         
         if (verbose) {
           message("Attempting to query LDC with:")
-          message(query)
+          message(current_next_query)
         }
         
         # The token might expire and need refreshing!
@@ -565,16 +568,16 @@ fetch_ldc <- function(keys = NULL,
         
         # Querying with the token if we've got it.
         if (is.null(token)) {
-          response <- httr::GET(url = query,
+          response <- httr::GET(url = current_next_query,
                                 httr::timeout(timeout),
-                                              httr::user_agent(user_agent))
+                                httr::user_agent(user_agent))
           
         } else {
-          response <- httr::GET(url = query,
+          response <- httr::GET(url = current_next_query,
                                 httr::timeout(timeout),
-                                              httr::user_agent(user_agent),
-                                              httr::add_headers(Authorization = paste("Bearer",
-                                                                                      token[["IdToken"]])))
+                                httr::user_agent(user_agent),
+                                httr::add_headers(Authorization = paste("Bearer",
+                                                                        token[["IdToken"]])))
         }
         
         # What if there's an error????
