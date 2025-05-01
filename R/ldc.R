@@ -535,8 +535,9 @@ fetch_ldc <- function(keys = NULL,
           }
         }
         
-        
-        # last_rid <- max(content_df_list[[length(content_df_list)]][["rid"]])
+        # The cursor is based on the indices that the user can see, so the
+        # previous solution using the RIDs won't work when the user's access is
+        # restricted to a subset of the data.
         cursor_position <- sapply(X = content_df_list,
                                   FUN = nrow) |>
           sum()
