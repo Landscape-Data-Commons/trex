@@ -785,6 +785,124 @@ fetch_ldc_ecosite <- function(keys,
             verbose = verbose)
 }
 
+#' Fetching data from the Landscape Data Commons via API query
+#' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
+#' 
+#' There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
+#' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
+#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
+#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
+#' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
+#' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.
+#' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
+#' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
+#' @seealso
+#' \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
+#' \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}} will query for data by ecological site ID.
+#' @examples
+#' # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
+#' headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
+#' # To retrieve all LPI data collected in ecological sites in the 036X Major Land Resource Area (MLRA)
+#' relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data_type = "header", exact_match = FALSE)
+#' lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
+#' @export
+fetch_ldc_metadata <- function(data_type,
+                               timeout = 300,
+                               verbose = FALSE) {
+  user_agent <- "http://github.com/Landscape-Data-Commons/trex"
+  base_url <- "https://api.landscapedatacommons.org/api/v1/"
+  
+  # This list stores the actual name of the table as understood by the API as
+  # the index names and the aliases understood by trex as the vectors of values
+  valid_tables <- list(#"schema" = c("tbl-schema"),
+    "dataGap" = c("gap", "dataGap"),
+    "dataHeader" = c("header", "dataHeader"),
+    "dataHeight" = c("height", "heights", "dataHeight"),
+    "dataLPI" = c("lpi", "LPI", "dataLPI"),
+    "dataSoilStability" = c("soilstability", "dataSoilStability"),
+    "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
+    "geoIndicators" = c("indicators", "geoIndicators"),
+    "geoSpecies" = c("species", "geoSpecies"),
+    "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
+    "dataPlotCharacterization" = c("plotchar", "plotccharacterization", "dataPlotCharacterization"),
+    "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
+    "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
+    "tblProject" = c("project", "projects", "tblProject"))
+  
+  # This converts it to a data frame.
+  valid_tables <- lapply(X = names(valid_tables),
+                         valid_tables = valid_tables,
+                         FUN = function(X, valid_tables){
+                           data.frame(table_name = X,
+                                      data_type = valid_tables[[X]])
+                         }) |>
+    dplyr::bind_rows()
+  
+  if (!(data_type %in% valid_tables$data_type)) {
+    stop(paste0("data_type must be one of the following character strings (some are aliases of each other): ",
+                paste(valid_tables$data_type,
+                      collapse = ", "),
+                "."))
+  }
+  
+  current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
+  
+  
+  if (delay < 0) {
+    stop("delay must be a positive numeric value.")
+  } else {
+    # Convert the value from milliseconds to nanoseconds because we'll be using
+    # microbenchmark::get_nanotime() which returns the current time in nanoseconds
+    delay <- delay * 10^6
+  }
+  
+  # Build the query by adding "/metadata/"
+  current_query <- paste0(base_url,
+                          "metadata/",
+                          current_table)
+  
+  # Use the query to snag the table
+  response <- httr::GET(url = current_query,
+                        httr::timeout(timeout),
+                        httr::user_agent(user_agent))
+  
+  # What if there's an error????
+  if (httr::http_error(response)) {
+    if (response$status_code == 500) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+    } else {
+      stop(paste0("Query failed with status ",
+                  response$status_code))
+    }
+  }
+  
+  # Grab only the data portion
+  response_content <- response[["content"]]
+  # Convert from raw to character
+  content_character <- rawToChar(response_content)
+  # Convert from character to data frame.
+  # This won't try to make a data frame if content_character is an empty string.
+  if (nchar(content_character) > 0) {
+  content_df <- jsonlite::fromJSON(content_character) |>
+    as.data.frame(x = _)
+  } else {
+    content_df <- NULL
+  }
+  
+  # If there aren't data, let the user know
+  if (length(content_df) < 1) {
+    warning("No metadata retrieved. This is likely due to the LDC API not serving metadata for the requested data type.")
+    return(NULL)
+  } else {
+    return(content_df)
+  }
+}
+
 #' A function for coercing data in a data frame into an expected format.
 #' @description Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
 #' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
