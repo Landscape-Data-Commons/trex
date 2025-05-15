@@ -483,7 +483,8 @@ fetch_ldc <- function(keys = NULL,
       # Convert from raw to character
       content_character <- rawToChar(response_content)
       # Convert from character to data frame
-      current_content_df <- jsonlite::fromJSON(content_character)
+      current_content_df <- jsonlite::fromJSON(content_character) |>
+        as.data.frame(x = _)
       
       content_df_list <- list(current_content_df)
       
@@ -523,7 +524,7 @@ fetch_ldc <- function(keys = NULL,
         }
         
         # The token might expire and need refreshing!
-        # This exists up above too, but we need it here in the while loop
+        # This exists up above too, but we need it here in the while loopap
         # because we might be in the while for long enough for a token to expire
         if (!is.null(token)) {
           if (Sys.time() > token[["expiration_time"]]) {
@@ -565,7 +566,8 @@ fetch_ldc <- function(keys = NULL,
         # Convert from raw to character
         content_character <- rawToChar(response_content)
         # Convert from character to data frame
-        current_content_df <- jsonlite::fromJSON(content_character)
+        current_content_df <- jsonlite::fromJSON(content_character) |>
+          as.data.frame(x = _)
         
         # Bind that onto the end of the list
         # The data are wrapped in list() so that it gets added
