@@ -355,11 +355,8 @@ fetch_ldc <- function(keys = NULL,
       }
     }
     
-    # We handle things differently if the data type is header
-    # because the header table doesn't have an rid variable
-    # and we can't use take or cursor options without that
-    
-    if (data_type == "header" | is.null(take)) {
+    # We handle things differently if there's no take value
+    if (is.null(take)) {
       if (verbose) {
         message("Attempting to query LDC with:")
         message(current_query)
