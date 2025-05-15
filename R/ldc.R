@@ -393,7 +393,8 @@ fetch_ldc <- function(keys = NULL,
       # Convert from raw to character
       content_character <- rawToChar(response_content)
       # Convert from character to data frame
-      content_df <- jsonlite::fromJSON(content_character)
+      content_df <- jsonlite::fromJSON(content_character) |>
+        as.data.frame(x = _)
       
     } else {
       # OKAY! So handling using take and cursor options for
@@ -842,7 +843,8 @@ coerce_ldc <- function(data,
     # Convert from raw to character
     content_character <- rawToChar(response_content)
     # Convert from character to data frame
-    lookup_table <- jsonlite::fromJSON(content_character)
+    lookup_table <- jsonlite::fromJSON(content_character) |>
+      as.data.frame(x = _)
     if (verbose) {
       message("Schema converted from json to character")
     }
