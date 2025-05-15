@@ -374,22 +374,7 @@ fetch_ldc <- function(keys = NULL,
                               httr::user_agent(user_agent),
                               httr::add_headers(Authorization = paste("Bearer",
                                                                       token[["IdToken"]])))
-        response <- httr::GET(url = current_query,
-                              httr::add_headers(Authorization = paste("Bearer",
-                                                                      token[["IdToken"]])))
       }
-      # if (!is.null(username) & !is.null(password)) {
-      #   response <- httr::GET(current_query,
-      #                         config = list(httr::timeout(timeout),
-      #                                       httr::user_agent(user_agent),
-      #                                       httr::authenticate(user = username,
-      #                                                          password = password)))
-      # } else {
-      #   response <- httr::GET(current_query,
-      #                         config = list(httr::timeout(timeout),
-      #                                       httr::user_agent(user_agent)))
-      # }
-      
       
       # What if there's an error????
       if (httr::http_error(response)) {
