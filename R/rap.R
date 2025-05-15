@@ -63,7 +63,7 @@ fetch_rap <- function(polygons,
     dplyr::select(.data = _,
                   tidyselect::all_of(c("geometry",
                                        "mask",
-                                       "year"))) 
+                                       "year")))
   
   # Before we can convert these into a geoJSON, we need to be absolutely sure
   # that the coordinate reference system for the polygons is WGS84 because
