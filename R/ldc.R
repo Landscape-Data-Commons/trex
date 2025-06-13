@@ -401,7 +401,7 @@ fetch_ldc <- function(keys = NULL,
       # anything non-header
       # The first query needs to not specify the cursor position
       # and then after that we'll keep trying with the last
-      # rid value + 1 as the cursor until we get an empty
+      # rid value as the cursor until we get an empty
       # response
       if (verbose) {
         message(paste0("Retrieving records in chunks of ", take))
@@ -492,12 +492,31 @@ fetch_ldc <- function(keys = NULL,
           }
         }
         
+        # CURSOR HANDLING!!!!!!!!!!!!
+        # There's been some back-and-forth with the API on how to specify the
+        # cursor position. Right now (2025-06-13) the way it works is that the
+        # cursor references the RID in the table.
+        # Example:
+        # Submitted request:
+        #    /api/v1/dataLPI?take=1&cursor=496815
+        # Server-side SQL query:
+        #    SELECT *
+        #    FROM public_test.datalpi_filtered_view
+        #    WHERE 1 = 1 AND "rid" > 496815 ORDER BY rid ASC LIMIT 1
+        # So, the strategy here is just to use the highest value for RID in the
+        # last returned records as the cursor for the next request.
+        cursor_position <- dplyr::last(content_df_list) |>
+          dplyr::pull(.data = _,
+                      var = rid) |>
+          max()
+        
+        # NO LONGER CORRECT, BUT HELD HERE JUST IN CASE
         # The cursor is based on the indices that the user can see, so the
         # previous solution using the RIDs won't work when the user's access is
         # restricted to a subset of the data.
-        cursor_position <- sapply(X = content_df_list,
-                                  FUN = nrow) |>
-          sum()
+        # cursor_position <- sapply(X = content_df_list,
+        #                           FUN = nrow) |>
+        #   sum()
         
         current_next_query <- paste0(current_query, "&cursor=", cursor_position)
         
@@ -572,7 +591,12 @@ fetch_ldc <- function(keys = NULL,
         }
       }
     }
-    # Append whatever it is that we got back
+    # Append whatever it is that we got back to our collection of results from
+    # the assorted queries.
+    # This is important because some queries may actually take multiple requests
+    # if there's a non-NULL take value, so each index in data_list will be the
+    # results from the original query (based on key chunks) or that plus any
+    # follow-up queries made due to take.
     data_list <- c(data_list, list(content_df))
   }
   
