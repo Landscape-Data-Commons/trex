@@ -1,10 +1,10 @@
 #' Get data from the Rangeland Analysis Platform
-#' @description Query the RAP for tabular cover, meterological, or production data for a given polygon.
+#' @description Query the RAP for tabular cover, meteorological, or production data for a given polygon.
 #' @param polygons Polygon sf object. The area to return data for.
 #' @param data_type. Character string. The type of data to request. Valid values are \code{"cover"}, \code{"covermeterology"}, \code{"production"}, and \code{"production16day"}. Defaults to \code{"cover"}.
 #' @param mask Logical. If \code{TRUE} then the request to the API will return data only about areas NOT identified as cropland, water, or human development. Defaults to \code{TRUE}.
 #' @param year Optional numeric. If this corresponds to a year for which there are RAP data (1986 through the last completed calendar year) then the query will return only data for that year. If it's \code{NULL} then data for every available year will be returned. Defaults to \code{NULL}.
-#' @returns A data frame containing the requested data for the provided polygon.
+#' @returns A data frame containing the requested data for the provided polygon. Units for cover are percent of area, units for production are pounds per acre.
 #' @export
 fetch_rap <- function(polygons,
                       data_type = "cover",
