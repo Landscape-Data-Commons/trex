@@ -415,9 +415,9 @@ fetch_ldc <- function(keys = NULL,
                                                                           "\\?"))
       if (verbose) {
         if (query_contains_questionmark) {
-          message("This query already has a ?, using an &.")
+          message("This query already has a ? due to the presence of other parameters, using an &.")
         } else {
-          message("This query does not already have a ?, using an ?.")
+          message("This query does not already have a ? due to a lack of other parameters, using an ?.")
         }
       }
       
