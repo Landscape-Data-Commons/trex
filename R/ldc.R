@@ -338,6 +338,8 @@ fetch_ldc <- function(keys = NULL,
   # expired each time we use it.
   data_list <- list()
   
+  querying_start_time <- Sys.time()
+  
   for (current_query in queries) {
     # The token might expire and need refreshing!
     if (!is.null(token)) {
@@ -374,6 +376,10 @@ fetch_ldc <- function(keys = NULL,
                               httr::user_agent(user_agent),
                               httr::add_headers(Authorization = paste("Bearer",
                                                                       token[["IdToken"]])))
+      }
+      
+      if (verbose) {
+        message("Response received from server. Attempting to parse it into a data frame.")
       }
       
       # What if there's an error????
@@ -449,6 +455,10 @@ fetch_ldc <- function(keys = NULL,
                                                                       token[["IdToken"]])))
       }
       
+      if (verbose) {
+        message("Response received from server. Attempting to parse it into a data frame.")
+      }
+      
       # What if there's an error????
       if (httr::http_error(response)) {
         if (response$status_code == 500) {
@@ -478,6 +488,9 @@ fetch_ldc <- function(keys = NULL,
       # is set to the rid following the the highest rid in
       # the last chunk
       while (nrow(content_df_list[[length(content_df_list)]]) == take) {
+        if (verbose) {
+          message("The server may have additional qualifying records. Attempting to request them.")
+        }
         # And to avoid flooding the API server with requests,
         # we'll put in a delay here.
         # This gets the current time then spins its wheels,
@@ -557,6 +570,10 @@ fetch_ldc <- function(keys = NULL,
                                                                         token[["IdToken"]])))
         }
         
+        if (verbose) {
+          message("Response received from server. Attempting to parse it into a data frame.")
+        }
+        
         # What if there's an error????
         if (httr::http_error(response)) {
           stop(paste0("Query failed with status ",
@@ -600,6 +617,24 @@ fetch_ldc <- function(keys = NULL,
     data_list <- c(data_list, list(content_df))
   }
   
+  querying_end_time <- Sys.time()
+  
+  total_time <- querying_end_time - querying_start_time
+  time_units <- "seconds"
+  if (total_time > 60) {
+    total_time <- total_time / 60
+    time_unit <- "minutes"
+  }
+  if (total_time > 60) {
+    total_time <- total_time / 60
+    time_unit <- "hours"
+  }
+  
+  if (verbose) {
+    message(paste0("The total time spent retrieving data from the server was: ",
+                   round(total_time,
+                         digits = 2), " ", time_units))
+  }
   
   # Combine all the results of the queries
   data <- do.call(rbind,
