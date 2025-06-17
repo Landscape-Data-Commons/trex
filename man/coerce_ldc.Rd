@@ -4,17 +4,17 @@
 \alias{coerce_ldc}
 \title{A function for coercing data in a data frame into an expected format.}
 \usage{
-coerce_ldc(data, use_schema = FALSE, verbose = FALSE)
+coerce_ldc(data, data_type, verbose = FALSE)
 }
 \arguments{
 \item{data}{Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.}
 
-\item{use_schema}{Logical. If \code{TRUE} then the current metadata schema will be downloaded from the Landscape Data Commons and used to determine which data format every variable should be. If \code{FALSE} then the function will make a best guess at which variables should be numeric and coerce only those. Defaults to \code{FALSE}.}
+\item{data_type}{Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
 \value{
-The original data frame, \code{data}, either with all variable data types matching the schema from the Landscape Data Commons or with variables that could be coerced to numeric made numeric.
+The original data frame, \code{data}, with variables coerced as possible and necessary.
 }
 \description{
 Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.

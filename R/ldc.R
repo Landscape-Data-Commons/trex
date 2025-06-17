@@ -974,270 +974,59 @@ fetch_ldc_metadata <- function(data_type,
   }
 }
 
+
 #' A function for coercing data in a data frame into an expected format.
 #' @description Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
 #' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
-# #' @param lookup_table Optional data frame. A lookup table of data formats to coerce the data into. Must contain the variables \code{field_var} and \code{field_var_type} where \code{field_var} contains the names of the variables in \code{data} and \code{field_var_type} contains the corresponding data formats that they should be.
-# #' @param field_var
-# #' @param field_type_var
-#' @param use_schema Logical. If \code{TRUE} then the current metadata schema will be downloaded from the Landscape Data Commons and used to determine which data format every variable should be. If \code{FALSE} then the function will make a best guess at which variables should be numeric and coerce only those. Defaults to \code{FALSE}.
+#' @param data_type Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
-#' @returns The original data frame, \code{data}, either with all variable data types matching the schema from the Landscape Data Commons or with variables that could be coerced to numeric made numeric.
+#' @returns The original data frame, \code{data}, with variables coerced as possible and necessary.
 #' @export
 coerce_ldc <- function(data,
                        # lookup_table = NULL,
                        # field_var = NULL,
                        # field_type_var = NULL,
-                       use_schema = FALSE,
+                       data_type,
                        verbose = FALSE) {
-  if (use_schema) {
+  if (!is.null(data_type)) {
     if (verbose) {
-      message("Using schema downloaded from the LDC.")
+      message("Requesting schema from the LDC.")
     }
     
-    if (verbose) {
-      message("Using Field as the field variable and DataType as the data type variable.")
-    }
-    
-    # These are the default names for the variables found in the metadata table
-    # accessible through the API
-    field_var <- "Field"
-    field_type_var <- "DataType"
-    
-    # Just in case they asked to use the official schema but also supplied a
-    # lookup table
-    if (!is.null(lookup_table)) {
-      warning("Lookup table is being ignored in favor of downloading the current schema.")
-    }
-    
-    # The query for the metadata table is straightforward!
-    # Be sure to ask for the latest
-    query <- "https://api.landscapedatacommons.org/api/v1/tbl-schema/latest"
+    var_lut <- fetch_ldc_metadata(data_type = data_type,
+                                  verbose = verbose) |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(x = c("field",
+                                             "data_class_r"))) |>
+      dplyr::filter(.data = _,
+                    data_class_r != "date")
     
     if (verbose) {
-      message("Attempting to query LDC with:")
-      message(query)
+      message("Coercing variables as needed.")
     }
     
-    # Full query results
-    response <- httr::GET(query,
-                          httr::timeout(timeout))
-    # What if there's an error????
-    if (httr::http_error(response)) {
-      stop(paste0("Retrieving schema from the API failed with status ",
-                  response$status_code))
-    }
-    # Grab only the data portion
-    response_content <- response[["content"]]
-    # Convert from raw to character
-    content_character <- rawToChar(response_content)
-    # Convert from character to data frame
-    lookup_table <- jsonlite::fromJSON(content_character) |>
-      as.data.frame(x = _)
-    if (verbose) {
-      message("Schema converted from json to character")
-    }
+    data_coerced <- dplyr::mutate(.data = data,
+                               dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                                                                          data_class_r != "date") |>
+                                                                          dplyr::pull(.data = _,
+                                                                                      var = field)),
+                                             .fns = ~ methods::as(object = .x,
+                                                                  Class = var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()])),
+                               # Doing some manual work on the dates because
+                               # the previous step claims there's no method for
+                               # coercion as written.
+                               # They're going to be character strings but we
+                               # only care about the first 10 characters which
+                               # ought to be the date as "YYYY-MM-DD"
+                               dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                                                                          data_class_r == "date") |>
+                                                                          dplyr::pull(.data = _,
+                                                                                      var = field)),
+                                             .fns = ~ substr(x = .x,
+                                                             start = 1,
+                                                             stop = 10) |>
+                                               as.Date(x = _)))
     
-    # Now, the lookup table will have data types we don't recognize in R, so it
-    # needs its own lookup table. Absurd, but true.
-    api_to_r_lookup <- data.frame(api_format = c("TEXT",
-                                                 "NUMERIC",
-                                                 "INTEGER",
-                                                 "BIT",
-                                                 "DATE",
-                                                 "REAL",
-                                                 "DOUBLE PRECISION",
-                                                 "POSTGIS.GEOMETRY",
-                                                 "TIMESTAMP",
-                                                 "VARCHAR"),
-                                  r_format = c("character",
-                                               "numeric",
-                                               "numeric",
-                                               "logical",
-                                               "date",
-                                               "numeric",
-                                               "numeric",
-                                               "geometry",
-                                               "date",
-                                               "character"))
-    
-    lookup_table <- merge(x = lookup_table,
-                          y = api_to_r_lookup,
-                          by.x = field_type_var,
-                          by.y = "api_format",
-                          all.x = TRUE)
-    
-    lookup_table_minimum <- unique(lookup_table[, c(field_var, "r_format")])
-    
-    if (any(table(lookup_table_minimum[[field_var]]) > 1)) {
-      bad_variables <- names(table(lookup_table_minimum[[field_var]]))[table(lookup_table_minimum[[field_var]]) > 1]
-      stop("The downloaded schema contains the following variable(s) with multiple data types: ",
-           paste(bad_variables,
-                 collapse = ", "))
-    }
-    
-    # Now to actually do some coercion
-    # We're going to do this variable-by-variable in a for loop because that's easy
-    data_coerced <- data
-    for (data_var in names(data_coerced)) {
-      # Just grab the current variable
-      current_vector <- data_coerced[[data_var]]
-      # How many of these values are NA?
-      incoming_na_count <- sum(is.na(current_vector))
-      incoming_na_indices <- which(is.na(current_vector))
-      
-      expected_format <- lookup_table_minimum$r_format[lookup_table_minimum[[field_var]] == data_var]
-      
-      # Each of these is the same chunk of code, just slightly tweaked to fit
-      # the format
-      # I could probably do this elegantly without repeated code chunks, but I
-      # haven't so just be careful and be sure to edit all of them!
-      switch(expected_format,
-             "character" = {
-               if (class(current_vector) != "character") {
-                 if (verbose) {
-                   message(paste0("Attempting to coerce ",
-                                  data_var,
-                                  " to character."))
-                 }
-                 current_vector_coerced <- as.character(current_vector)
-                 
-                 coerced_na_count <- sum(is.na(current_vector_coerced))
-                 coerced_na_indices <- which(is.na(current_vector_coerced))
-                 
-                 # For extra security, we'll check that the NA indices are
-                 # identical between the incoming and coerced vectors
-                 # That lets us catch if the coercion converted any values to NA
-                 if (identical(incoming_na_indices, coerced_na_indices)) {
-                   data_coerced[[data_var]] <- current_vector_coerced
-                   if (verbose) {
-                     message("Successfully coerced ",
-                             data_var,
-                             ".")
-                   }
-                 } else {
-                   warning(paste0("Coercing ",
-                                  data_var,
-                                  " from ",
-                                  class(current_vector),
-                                  " to character would produce NA values. The variable will not be coerced."))
-                 }
-               } else {
-                 if (verbose) {
-                   message(paste0("The variable ",
-                                  data_var,
-                                  " does not need to be coerced. Skipping."))
-                 }
-               }
-             },
-             "numeric" = {
-               if (class(current_vector) != "numeric") {
-                 if (verbose) {
-                   message(paste0("Attempting to coerce ",
-                                  data_var,
-                                  " to numeric."))
-                 }
-                 current_vector_coerced <- as.numeric(current_vector)
-                 
-                 coerced_na_count <- sum(is.na(current_vector_coerced))
-                 coerced_na_indices <- which(is.na(current_vector_coerced))
-                 
-                 if (identical(incoming_na_indices, coerced_na_indices)) {
-                   data_coerced[[data_var]] <- current_vector_coerced
-                   if (verbose) {
-                     message("Successfully coerced ",
-                             data_var,
-                             ".")
-                   }
-                 } else {
-                   warning(paste0("Coercing ",
-                                  data_var,
-                                  " from ",
-                                  class(current_vector),
-                                  " to numeric would produce NA values. The variable will not be coerced."))
-                 }
-               } else {
-                 if (verbose) {
-                   message(paste0("The variable ",
-                                  data_var,
-                                  " does not need to be coerced. Skipping."))
-                 }
-               }
-             },
-             "logical" = {
-               if (class(current_vector) != "logical") {
-                 if (verbose) {
-                   message(paste0("Attempting to coerce ",
-                                  data_var,
-                                  " to logical."))
-                 }
-                 current_vector_coerced <- as.logical(current_vector)
-                 
-                 coerced_na_count <- sum(is.na(current_vector_coerced))
-                 coerced_na_indices <- which(is.na(current_vector_coerced))
-                 
-                 if (identical(incoming_na_indices, coerced_na_indices)) {
-                   data_coerced[[data_var]] <- current_vector_coerced
-                   if (verbose) {
-                     message("Successfully coerced ",
-                             data_var,
-                             ".")
-                   }
-                 } else {
-                   warning(paste0("Coercing ",
-                                  data_var,
-                                  " from ",
-                                  class(current_vector),
-                                  " to logical would produce NA values. The variable will not be coerced."))
-                 }
-               } else {
-                 if (verbose) {
-                   message(paste0("The variable ",
-                                  data_var,
-                                  " does not need to be coerced. Skipping."))
-                 }
-               }
-             },
-             "date" = {
-               if (class(current_vector) != "date") {
-                 if (verbose) {
-                   message(paste0("Attempting to coerce ",
-                                  data_var,
-                                  " to date."))
-                 }
-                 current_vector_coerced <- as.Date(current_vector)
-                 
-                 coerced_na_count <- sum(is.na(current_vector_coerced))
-                 coerced_na_indices <- which(is.na(current_vector_coerced))
-                 
-                 if (identical(incoming_na_indices, coerced_na_indices)) {
-                   data_coerced[[data_var]] <- current_vector_coerced
-                   if (verbose) {
-                     message("Successfully coerced ",
-                             data_var,
-                             ".")
-                   }
-                 } else {
-                   warning(paste0("Coercing ",
-                                  data_var,
-                                  " from ",
-                                  class(current_vector),
-                                  " to date would produce NA values. The variable will not be coerced."))
-                 }
-               } else {
-                 if (verbose) {
-                   message(paste0("The variable ",
-                                  data_var,
-                                  " does not need to be coerced. Skipping."))
-                 }
-               }
-             },
-             "geometry" = {
-               message(paste0("The variable ",
-                              data_var,
-                              " is flagged as geometry. No coercion necessary."))
-             })
-    }
     
     if (verbose) {
       message("Coercion complete.")
@@ -1245,7 +1034,7 @@ coerce_ldc <- function(data,
     
   } else {
     if (verbose) {
-      message("Attempting to coerce any variables to numeric possible.")
+      message("No data_type specified, so only minimal coercion is possible. Attempting to coerce any variables to numeric possible without producing NA values.")
     }
     # We're working without a lookup table here
     # So, the easiest approach is to look at variables one-by-one
