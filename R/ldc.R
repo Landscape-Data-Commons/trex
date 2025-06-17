@@ -103,6 +103,7 @@ get_ldc_token <- function(username,
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
 #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
+#' @param coerce Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}. 
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
@@ -126,6 +127,7 @@ fetch_ldc <- function(keys = NULL,
                       take = 10000,
                       delay = 500,
                       exact_match = TRUE,
+                      coerce = TRUE,
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   base_url <- "https://api.landscapedatacommons.org/api/v1/"
@@ -657,9 +659,18 @@ fetch_ldc <- function(keys = NULL,
                              collapse = ",")))
       }
     }
-    return(data)
   }
+  
+  # Coerce as necessary and requested!
+  if (coerce) {
+    data <- coerce_ldc(data = data,
+                       data_type = data_type,
+                       verbose = verbose)
+  }
+  
+  data
 }
+
 
 #' Fetching data from the Landscape Data Commons using spatial constraints
 #' @description A function for retrieving data from the Landscape Data Commons which fall within a given set of polygons. This is accomplished by retrieving the header information for all points in the LDC, spatializing them, and finding the PrimaryKey values associated with points within the given polygons. Those PrimaryKey values are used to retrieve only the qualifying data from the LDC.
