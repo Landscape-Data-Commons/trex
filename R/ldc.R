@@ -997,9 +997,7 @@ coerce_ldc <- function(data,
                                   verbose = verbose) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("field",
-                                             "data_class_r"))) |>
-      dplyr::filter(.data = _,
-                    data_class_r != "date")
+                                             "data_class_r")))
     
     if (verbose) {
       message("Coercing variables as needed.")
