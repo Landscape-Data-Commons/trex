@@ -134,8 +134,7 @@ fetch_ldc <- function(keys = NULL,
   
   # This list stores the actual name of the table as understood by the API as
   # the index names and the aliases understood by trex as the vectors of values
-  valid_tables <- list(#"schema" = c("tbl-schema"),
-    "dataGap" = c("gap", "dataGap"),
+  valid_tables <- list("dataGap" = c("gap", "dataGap"),
     "dataHeader" = c("header", "dataHeader"),
     "dataHeight" = c("height", "heights", "dataHeight"),
     "dataLPI" = c("lpi", "LPI", "dataLPI"),
@@ -168,7 +167,7 @@ fetch_ldc <- function(keys = NULL,
   current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
   
   if (!(class(keys) %in% c("character", "NULL"))) {
-    stop("keys must be a character string or vector of character strings or NULL.")
+    stop("keys must be a character string, vector of character strings, or NULL.")
   }
   
   if (!(class(key_type) %in% c("character", "NULL"))) {
@@ -179,9 +178,26 @@ fetch_ldc <- function(keys = NULL,
     stop("Must provide key_type when providing keys.")
   }
   
+  # This uses the metadata to confirm that the query won't return an error due
+  # to referencing a variable that doesn't exist in the requested table.
+  if (class(key_type) == "character") {
+    available_variables <- fetch_ldc_metadata(data_type = data_type) |>
+      dplyr::pull(.data = _,
+                  var = "field")
+    if (!(key_type %in% available_variables)) {
+      stop(paste0("The variable ", key_type, " does not appear in ", current_table,
+                  ". Possible valid key_type values for ", current_table, " are: ",
+                  paste(available_variables,
+                        collapse = ", ")))
+    }
+  }
+  
   if (!is.null(take)) {
     if (!is.numeric(take) | length(take) > 1) {
       stop("take must either be NULL or a single numeric value.")
+    }
+    if (take > 10000) {
+      warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
     }
   }
   
@@ -194,50 +210,15 @@ fetch_ldc <- function(keys = NULL,
   }
   
   # Check the user credentials
-  if (!is.null(token)) {
-    if (class(token) == "list") {
-      if (!("IdToken" %in% names(token))) {
-        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-      } else if (class(token[["IdToken"]]) != "character") {
-        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-      }
-      if (!("expiration_time" %in% names(token))) {
-        token[["expiration_time"]] <- Sys.time() + 3600
-      }
-    } else if (class(token) == "character") {
-      if (length(token) != 1) {
-        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-      }
-      token <- list(IdToken = token,
-                    # This is just a rough guess on the validity window of the
-                    # token so we don't have to do more complicated handling
-                    # later.
-                    expiration_time = Sys.time() + 3600)
-    }
-  } else {
-    if (!identical(is.null(username), is.null(password))) {
-      if (is.null(username)) {
-        warning("No token or username provided. Ignoring provided password and retrieving only data which do not require credentials.")
-      }
-      if (is.null(password)) {
-        warning("No token or password provided. Ignoring provided username and retrieving only data which do not require credentials.")
-      }
-    } else if (!is.null(username) & !is.null(password)) {
-      if (class(username) != "character" | length(username) > 1) {
-        stop("Provided username must be a single character string.")
-      }
-      if (class(password) != "character" | length(password) > 1) {
-        stop("Provided username must be a single character string.")
-      }
-      token <- get_ldc_token(username = username,
-                             password = password)
-    } else if (verbose) {
-      message("No credentials provided. Retrieving only data which do not require credentials.")
-    }
+  token <- check_token(token = token,
+                       username = username,
+                       password = password,
+                       verbose = verbose)
+  if (verbose & is.null(token)) {
+    message("No credentials provided. Retrieving only data which do not require credentials.")
   }
   
-  
-  # If there are no keys, grab the whole table
+    # If there are no keys, grab the whole table
   if (is.null(keys)) {
     if (verbose) {
       message("No keys provided; retrieving all records.")
@@ -343,21 +324,25 @@ fetch_ldc <- function(keys = NULL,
   querying_start_time <- Sys.time()
   
   for (current_query in queries) {
+    token <- check_token(token = token,
+                         username = username,
+                         password = password,
+                         verbose = verbose)
     # The token might expire and need refreshing!
-    if (!is.null(token)) {
-      if (Sys.time() > token[["expiration_time"]]) {
-        if (verbose) {
-          message("Current API bearer authorization token has expired. Attempting to request a new one.")
-        }
-        if (!is.null(username) & !is.null(password)) {
-          token <- get_ldc_token(username = username,
-                                 password = password)
-        } else {
-          warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
-          token <- NULL
-        }
-      }
-    }
+    # if (!is.null(token)) {
+    #   if (Sys.time() > token[["expiration_time"]]) {
+    #     if (verbose) {
+    #       message("Current API bearer authorization token has expired. Attempting to request a new one.")
+    #     }
+    #     if (!is.null(username) & !is.null(password)) {
+    #       token <- get_ldc_token(username = username,
+    #                              password = password)
+    #     } else {
+    #       warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
+    #       token <- NULL
+    #     }
+    #   }
+    # }
     
     # We handle things differently if there's no take value
     if (is.null(take)) {
@@ -366,43 +351,47 @@ fetch_ldc <- function(keys = NULL,
         message(current_query)
       }
       
-      # Full query response using the token if we've got one.
-      if (is.null(token)) {
-        response <- httr::GET(url = current_query,
-                              httr::timeout(timeout),
-                              httr::user_agent(user_agent))
-        
-      } else {
-        response <- httr::GET(url = current_query,
-                              httr::timeout(timeout),
-                              httr::user_agent(user_agent),
-                              httr::add_headers(Authorization = paste("Bearer",
-                                                                      token[["IdToken"]])))
-      }
+      content_df <- query_ldc(query = current_query,
+                              token = token,
+                              timeout = 300)
       
-      if (verbose) {
-        message("Response received from server. Attempting to parse it into a data frame.")
-      }
-      
-      # What if there's an error????
-      if (httr::http_error(response)) {
-        if (response$status_code == 500) {
-          stop(paste0("Query failed with status ",
-                      response$status_code,
-                      " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
-        } else {
-          stop(paste0("Query failed with status ",
-                      response$status_code))
-        }
-      }
-      
-      # Grab only the data portion
-      response_content <- response[["content"]]
-      # Convert from raw to character
-      content_character <- rawToChar(response_content)
-      # Convert from character to data frame
-      content_df <- jsonlite::fromJSON(content_character) |>
-        as.data.frame(x = _)
+      # # Full query response using the token if we've got one.
+      # if (is.null(token)) {
+      #   response <- httr::GET(url = current_query,
+      #                         httr::timeout(timeout),
+      #                         httr::user_agent(user_agent))
+      #   
+      # } else {
+      #   response <- httr::GET(url = current_query,
+      #                         httr::timeout(timeout),
+      #                         httr::user_agent(user_agent),
+      #                         httr::add_headers(Authorization = paste("Bearer",
+      #                                                                 token[["IdToken"]])))
+      # }
+      # 
+      # if (verbose) {
+      #   message("Response received from server. Attempting to parse it into a data frame.")
+      # }
+      # 
+      # # What if there's an error????
+      # if (httr::http_error(response)) {
+      #   if (response$status_code == 500) {
+      #     stop(paste0("Query failed with status ",
+      #                 response$status_code,
+      #                 " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
+      #   } else {
+      #     stop(paste0("Query failed with status ",
+      #                 response$status_code))
+      #   }
+      # }
+      # 
+      # # Grab only the data portion
+      # response_content <- response[["content"]]
+      # # Convert from raw to character
+      # content_character <- rawToChar(response_content)
+      # # Convert from character to data frame
+      # content_df <- jsonlite::fromJSON(content_character) |>
+      #   as.data.frame(x = _)
       
     } else {
       # OKAY! So handling using take and cursor options for
@@ -421,13 +410,13 @@ fetch_ldc <- function(keys = NULL,
                                                          pattern = paste0(base_url,
                                                                           current_table,
                                                                           "\\?"))
-      if (verbose) {
-        if (query_contains_questionmark) {
-          message("This query already has a ? due to the presence of other parameters, using an &.")
-        } else {
-          message("This query does not already have a ? due to a lack of other parameters, using an ?.")
-        }
-      }
+      # if (verbose) {
+      #   if (query_contains_questionmark) {
+      #     message("This query already has a ? due to the presence of other parameters, using an &.")
+      #   } else {
+      #     message("This query does not already have a ? due to a lack of other parameters, using an ?.")
+      #   }
+      # }
       
       
       # So this uses either ? or & to add the take value to the query depending
@@ -443,43 +432,10 @@ fetch_ldc <- function(keys = NULL,
         message(current_query)
       }
       
-      # Querying with the token if we've got it.
-      if (is.null(token)) {
-        response <- httr::GET(url = current_query,
-                              httr::timeout(timeout),
-                              httr::user_agent(user_agent))
-        
-      } else {
-        response <- httr::GET(url = current_query,
-                              httr::timeout(timeout),
-                              httr::user_agent(user_agent),
-                              httr::add_headers(Authorization = paste("Bearer",
-                                                                      token[["IdToken"]])))
-      }
+      current_content_df <- query_ldc(query = current_query,
+                                      token = token,
+                                      timeout = timeout)
       
-      if (verbose) {
-        message("Response received from server. Attempting to parse it into a data frame.")
-      }
-      
-      # What if there's an error????
-      if (httr::http_error(response)) {
-        if (response$status_code == 500) {
-          stop(paste0("Query failed with status ",
-                      response$status_code,
-                      " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
-        } else {
-          stop(paste0("Query failed with status ",
-                      response$status_code))
-        }
-      }
-      
-      # Grab only the data portion
-      response_content <- response[["content"]]
-      # Convert from raw to character
-      content_character <- rawToChar(response_content)
-      # Convert from character to data frame
-      current_content_df <- jsonlite::fromJSON(content_character) |>
-        as.data.frame(x = _)
       
       content_df_list <- list(current_content_df)
       
@@ -540,55 +496,15 @@ fetch_ldc <- function(keys = NULL,
           message(current_next_query)
         }
         
-        # The token might expire and need refreshing!
-        # This exists up above too, but we need it here in the while loopap
-        # because we might be in the while for long enough for a token to expire
-        if (!is.null(token)) {
-          if (Sys.time() > token[["expiration_time"]]) {
-            if (verbose) {
-              message("Current API bearer authorization token has expired. Attempting to request a new one.")
-            }
-            if (!is.null(username) & !is.null(password)) {
-              token <- get_ldc_token(username = username,
-                                     password = password)
-            } else {
-              warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
-              token <- NULL
-            }
-          }
-        }
+        token <- check_token(token = token,
+                             username = username,
+                             password = password,
+                             verbose = verbose)
         
-        # Querying with the token if we've got it.
-        if (is.null(token)) {
-          response <- httr::GET(url = current_next_query,
-                                httr::timeout(timeout),
-                                httr::user_agent(user_agent))
-          
-        } else {
-          response <- httr::GET(url = current_next_query,
-                                httr::timeout(timeout),
-                                httr::user_agent(user_agent),
-                                httr::add_headers(Authorization = paste("Bearer",
-                                                                        token[["IdToken"]])))
-        }
+        current_content_df <- query_ldc(query = current_next_query,
+                                        token = token,
+                                        timeout = timeout)
         
-        if (verbose) {
-          message("Response received from server. Attempting to parse it into a data frame.")
-        }
-        
-        # What if there's an error????
-        if (httr::http_error(response)) {
-          stop(paste0("Query failed with status ",
-                      response$status_code))
-        }
-        
-        # Grab only the data portion
-        response_content <- response[["content"]]
-        # Convert from raw to character
-        content_character <- rawToChar(response_content)
-        # Convert from character to data frame
-        current_content_df <- jsonlite::fromJSON(content_character) |>
-          as.data.frame(x = _)
         
         # Bind that onto the end of the list
         # The data are wrapped in list() so that it gets added
@@ -619,6 +535,7 @@ fetch_ldc <- function(keys = NULL,
     data_list <- c(data_list, list(content_df))
   }
   
+  # This is so that we can tell the user how long it took to grab all the data.
   querying_end_time <- Sys.time()
   
   total_time <- querying_end_time - querying_start_time
@@ -644,7 +561,7 @@ fetch_ldc <- function(keys = NULL,
   
   # If there aren't data, let the user know
   if (length(data) < 1) {
-    warning("No data retrieved. Confirm that your keys and key_type are correct.")
+    warning("No data retrieved. Confirm that your keys and key_type are correct and that you've provided valid credentials (if the data are not publicly accessible).")
     return(NULL)
   } else {
     # If there are data and the user gave keys, find which if any are missing
@@ -654,9 +571,13 @@ fetch_ldc <- function(keys = NULL,
       # original values despite substituting unicode references for illegal characters
       missing_keys <- keys_vector_original[!(keys_vector_original %in% data[[key_type]])]
       if (length(missing_keys) > 0) {
-        warning(paste0("The following keys were not associated with data: ",
-                       paste(missing_keys,
-                             collapse = ",")))
+        warning(paste0(if (is.null(token) & (is.null(username) | is.null(password))) {
+          "Some keys were not associated with publicly-available data. Using LDC credentials (either username and password or a token) may return data for the following keys: "
+        } else {
+          "The following keys were not associated with returned data using the provided LDC credentials: "
+        },
+        paste(missing_keys,
+              collapse = ",")))
       }
     }
   }
@@ -718,8 +639,11 @@ fetch_ldc_spatial <- function(polygons,
     message("Fetching the header information from the LDC.")
   }
   headers_df <- fetch_ldc(data_type = "header",
+                          token = token,
                           username = username,
-                          password = password)
+                          password = password,
+                          verbose = verbose,
+                          timeout = timeout)
   
   # We know that the header info includes coordinates in NAD83, so we can easily
   # convert the data frame into an sf object
@@ -861,11 +785,13 @@ fetch_ldc_ecosite <- function(keys,
 #' There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
+#' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can cause issues, so adjust this as needed. Defaults to \code{500}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of metadata for the requested table. The data frame will contain all variables returned from the server plus an additional character variable called \code{"data_class_r"} which contains the R equivalent to the class of the variable called \code{"data_type"}.
 #' @export
 fetch_ldc_metadata <- function(data_type,
                                timeout = 300,
+                               delay = 500,
                                verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   base_url <- "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name="
@@ -971,7 +897,7 @@ fetch_ldc_metadata <- function(data_type,
       # coerce values into the expected data type.
       dplyr::mutate(.data = _,
                     data_class_r = stringr::str_replace_all(string = data_type,
-                                                           pattern = api_to_r_type_vector))
+                                                            pattern = api_to_r_type_vector))
   } else {
     content_df <- NULL
   }
@@ -1015,26 +941,26 @@ coerce_ldc <- function(data,
     }
     
     data_coerced <- dplyr::mutate(.data = data,
-                               dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
-                                                                                          data_class_r != "date") |>
-                                                                          dplyr::pull(.data = _,
-                                                                                      var = field)),
-                                             .fns = ~ methods::as(object = .x,
-                                                                  Class = var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()])),
-                               # Doing some manual work on the dates because
-                               # the previous step claims there's no method for
-                               # coercion as written.
-                               # They're going to be character strings but we
-                               # only care about the first 10 characters which
-                               # ought to be the date as "YYYY-MM-DD"
-                               dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
-                                                                                          data_class_r == "date") |>
-                                                                          dplyr::pull(.data = _,
-                                                                                      var = field)),
-                                             .fns = ~ substr(x = .x,
-                                                             start = 1,
-                                                             stop = 10) |>
-                                               as.Date(x = _)))
+                                  dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                                                                             data_class_r != "date") |>
+                                                                             dplyr::pull(.data = _,
+                                                                                         var = field)),
+                                                .fns = ~ methods::as(object = .x,
+                                                                     Class = var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()])),
+                                  # Doing some manual work on the dates because
+                                  # the previous step claims there's no method for
+                                  # coercion as written.
+                                  # They're going to be character strings but we
+                                  # only care about the first 10 characters which
+                                  # ought to be the date as "YYYY-MM-DD"
+                                  dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                                                                             data_class_r == "date") |>
+                                                                             dplyr::pull(.data = _,
+                                                                                         var = field)),
+                                                .fns = ~ substr(x = .x,
+                                                                start = 1,
+                                                                stop = 10) |>
+                                                  as.Date(x = _)))
     
     
     if (verbose) {
@@ -1097,4 +1023,164 @@ coerce_ldc <- function(data,
   
   # Return our coerced data
   data_coerced
+}
+
+# This isn't exported right now and is for internal use.
+query_ldc <- function(query,
+                      token = NULL,
+                      timeout = 300){
+  user_agent <- "http://github.com/Landscape-Data-Commons/trex"
+  # Full query response using the token if we've got one.
+  if (is.null(token)) {
+    response <- httr::GET(url = query,
+                          httr::timeout(timeout),
+                          httr::user_agent(user_agent))
+    
+  } else {
+    response <- httr::GET(url = query,
+                          httr::timeout(timeout),
+                          httr::user_agent(user_agent),
+                          httr::add_headers(Authorization = paste("Bearer",
+                                                                  token[["IdToken"]])))
+  }
+  
+  # What if there's an error????
+  if (httr::http_error(response)) {
+    if (response$status_code == 500) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and using trex::fetch_ldc_metadata() to see which variables are in which tables."))
+    } else if (response$status_code == 502) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which is likely due to a server-side issue. Please contact the LDC admin if this problem persists."))
+    } else {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  ". Please contact the LDC admin if this problem persists after troubleshooting."))
+    }
+  }
+  
+  # Grab only the data portion
+  response_content <- response[["content"]]
+  # Convert from raw to character
+  content_character <- rawToChar(response_content)
+  # Convert from character to data frame
+  content_df <- jsonlite::fromJSON(content_character) |>
+    as.data.frame(x = _)
+  
+  content_df
+}
+
+check_token <- function(token,
+                        username = NULL,
+                        password = NULL,
+                        verbose = FALSE) {
+  # Check the user credentials
+  if (!is.null(token)) {
+    if (verbose) {
+      message("Checking provided token for validity.")
+    }
+    if (class(token) == "list") {
+      if (!("IdToken" %in% names(token))) {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      } else if (class(token[["IdToken"]]) != "character") {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      }
+      if (!("expiration_time" %in% names(token))) {
+        if (verbose) {
+          message("The token doesn't have an associated expiration time and will be assumed to be valid for the next 30 minutes which may cause issues. Consider using get_ldc_token() to get a token with an accurate expiration time.")
+        }
+        # Best guess for an expiration time, which, at 30 minutes, is quite
+        # generous.
+        token[["expiration_time"]] <- Sys.time() + 1800
+      }
+      if (verbose) {
+        message("Provided token appears to be valid.")
+      }
+    } else if (class(token) == "character") {
+      if (length(token) != 1) {
+        stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
+      }
+      if (verbose) {
+        message("The token doesn't have an associated expiration time and will be assumed to be valid for the next 30 minutes which may cause issues. Consider using get_ldc_token() to get a token with an accurate expiration time.")
+      }
+      token <- list(IdToken = token,
+                    # This is just a rough guess on the validity window of the
+                    # token so we don't have to do more complicated handling
+                    # later.
+                    expiration_time = Sys.time() + 1800)
+    }
+  } else {
+    if (!identical(is.null(username), is.null(password))) {
+      if (is.null(username)) {
+        warning("No token or username provided. Returning NULL instead of getting a token.")
+      }
+      if (is.null(password)) {
+        warning("No token or password provided. Returning NULL instead of getting a token.")
+      }
+    } else if (!is.null(username) & !is.null(password)) {
+      if (class(username) != "character" | length(username) > 1) {
+        stop("Provided username must be a single character string.")
+      }
+      if (class(password) != "character" | length(password) > 1) {
+        stop("Provided username must be a single character string.")
+      }
+      if (verbose) {
+        message("Getting a token using the provided username and password.")
+      }
+      token <- get_ldc_token(username = username,
+                             password = password)
+    } else if (verbose) {
+      message("No credentials provided, returning NULL instead of getting a token.")
+    }
+  }
+  
+  # The token might expire and need refreshing!
+  if (!is.null(token)) {
+    if (Sys.time() > token[["expiration_time"]]) {
+      if (verbose) {
+        message("Current API bearer authorization token has expired. Attempting to request a new one.")
+      }
+      if (!is.null(username) & !is.null(password)) {
+        token <- get_ldc_token(username = username,
+                               password = password)
+      } else {
+        warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
+        token <- NULL
+      }
+    }
+  }
+  
+  token
+}
+
+ldc_table_aliases <- function(alias = NULL){
+  aliases <- list("dataGap" = c("gap", "dataGap"),
+       "dataHeader" = c("header", "dataHeader"),
+       "dataHeight" = c("height", "heights", "dataHeight"),
+       "dataLPI" = c("lpi", "LPI", "dataLPI"),
+       "dataSoilStability" = c("soilstability", "dataSoilStability"),
+       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
+       "geoIndicators" = c("indicators", "geoIndicators"),
+       "geoSpecies" = c("species", "geoSpecies"),
+       "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
+       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
+       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
+       "tblProject" = c("project", "projects", "tblProject"))
+  
+  if (is.null(alias)) {
+    aliases
+  } else {
+    output <- names(aliases)[sapply(X = aliases,
+                          alias = alias,
+                          FUN = function(X, alias){
+                            alias %in% X
+                          })]
+    if (length(output) < 1) {
+      stop(paste0(alias, " is not a recognized alias for any table in the LDC. Please use trex::ldc_table_aliases() to see which aliases are recognized."))
+    }
+    output
+  }
 }
