@@ -634,6 +634,11 @@ fetch_ldc_spatial <- function(polygons,
   
   # Just to get a unique ID in there for sure without having to ask the user
   polygons$unique_id <- 1:nrow(polygons)
+  # Make sure that we reflect the inherent assumptions here.
+  sf::st_agr(x = polygons) <- "constant"
+  # And get the polygons into the correct CRS
+  polygons <- sf::st_transform(x = polygons,
+                               crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs")
   
   if (verbose) {
     message("Fetching the header information from the LDC.")
@@ -654,14 +659,15 @@ fetch_ldc_spatial <- function(polygons,
                              coords = c("Longitude_NAD83",
                                         "Latitude_NAD83"),
                              crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs")
+  # Make sure that we reflect the inherent assumptions here.
+  sf::st_agr(x = headers_sf) <- "constant"
   
   # We're just after the PrimaryKey values here
   if (verbose) {
     message("Finding points that fall within the polygons.")
   }
   header_polygons_intersection <- sf::st_intersection(x = headers_sf[, "PrimaryKey"],
-                                                      y = sf::st_transform(polygons[, "unique_id"],
-                                                                           crs = sf::st_crs(headers_sf)))
+                                                      y = polygons[, "unique_id"])
   
   # What if there're no qualifying data????
   if (nrow(header_polygons_intersection) < 1) {
