@@ -947,7 +947,7 @@ coerce_ldc <- function(data,
     }
     
     data_coerced <- dplyr::mutate(.data = data,
-                                  dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                  dplyr::across(.cols = tidyselect::any_of(x = dplyr::filter(.data = var_lut,
                                                                                              data_class_r != "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
@@ -959,7 +959,7 @@ coerce_ldc <- function(data,
                                   # They're going to be character strings but we
                                   # only care about the first 10 characters which
                                   # ought to be the date as "YYYY-MM-DD"
-                                  dplyr::across(.cols = tidyselect::all_of(x = dplyr::filter(.data = var_lut,
+                                  dplyr::across(.cols = tidyselect::any_of(x = dplyr::filter(.data = var_lut,
                                                                                              data_class_r == "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
