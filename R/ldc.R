@@ -630,6 +630,7 @@ fetch_ldc_spatial <- function(polygons,
                               take = NULL,
                               delay =  500,
                               return_spatial = TRUE,
+                              base_url = "https://api.landscapedatacommons.org/api/v1/",
                               verbose = FALSE) {
   if (!("sf" %in% class(polygons))) {
     stop("polygons must be a polygon sf object")
@@ -651,7 +652,8 @@ fetch_ldc_spatial <- function(polygons,
                           username = username,
                           password = password,
                           verbose = verbose,
-                          timeout = timeout)
+                          timeout = timeout,
+                          base_url = base_url)
   
   # We know that the header info includes coordinates in NAD83, so we can easily
   # convert the data frame into an sf object
@@ -698,6 +700,7 @@ fetch_ldc_spatial <- function(polygons,
                         timeout = timeout,
                         exact_match = TRUE,
                         delay = delay,
+                        base_url = base_url,
                         verbose = verbose)
     if (return_spatial) {
       output <- dplyr::inner_join(x = dplyr::select(.data = headers_sf,
@@ -741,6 +744,7 @@ fetch_ldc_ecosite <- function(keys,
                               take = NULL,
                               delay = 500,
                               exact_match = TRUE,
+                              base_url = "https://api.landscapedatacommons.org/api/v1/",
                               verbose = FALSE) {
   # First order of business: grab the header info for sampling locations that
   # match the ecosite(s) requested
@@ -758,6 +762,7 @@ fetch_ldc_ecosite <- function(keys,
                                take = NULL,
                                delay = 500,
                                exact_match = exact_match,
+                               base_url = base_url,
                                verbose = verbose)
   
   # Okay, so what if we get no data?
@@ -785,6 +790,7 @@ fetch_ldc_ecosite <- function(keys,
             take = take,
             delay = delay,
             exact_match = TRUE,
+            base_url = base_url,
             verbose = verbose)
 }
 
@@ -801,9 +807,10 @@ fetch_ldc_ecosite <- function(keys,
 fetch_ldc_metadata <- function(data_type,
                                timeout = 300,
                                delay = 500,
+                               base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
                                verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
-  base_url <- "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name="
+  # base_url <- "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name="
   
   # This list stores the actual name of the table as understood by the API as
   # the index names and the aliases understood by trex as the vectors of values
@@ -933,6 +940,7 @@ coerce_ldc <- function(data,
                        # field_var = NULL,
                        # field_type_var = NULL,
                        data_type,
+                       base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
                        verbose = FALSE) {
   if (!is.null(data_type)) {
     if (verbose) {
@@ -940,6 +948,7 @@ coerce_ldc <- function(data,
     }
     
     var_lut <- fetch_ldc_metadata(data_type = data_type,
+                                  base_url = base_url,
                                   verbose = verbose) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("field",
