@@ -118,6 +118,7 @@ get_ldc_token <- function(username,
 #' @export
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
+                      query_parameters,
                       data_type,
                       username = NULL,
                       password = NULL,
@@ -128,9 +129,11 @@ fetch_ldc <- function(keys = NULL,
                       delay = 2000,
                       exact_match = TRUE,
                       coerce = TRUE,
+                      verb = "POST",
+                      base_url = "https://api.landscapedatacommons.org/api/v1/",
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
-  base_url <- "https://api.landscapedatacommons.org/api/v1/"
+  # base_url <- "https://api.landscapedatacommons.org/api/v1/"
   
   # This list stores the actual name of the table as understood by the API as
   # the index names and the aliases understood by trex as the vectors of values
