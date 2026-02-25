@@ -147,6 +147,7 @@ fetch_ldc <- function(keys = NULL,
     "geoSpecies" = c("species", "geoSpecies"),
     "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
     "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+    "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
     "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
     "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
     "tblProject" = c("project", "projects", "tblProject"))
@@ -825,6 +826,7 @@ fetch_ldc_metadata <- function(data_type,
     "geoSpecies" = c("species", "geoSpecies"),
     "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
     "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+    "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
     "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
     "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
     "tblProject" = c("project", "projects", "tblProject"))
@@ -1175,18 +1177,19 @@ check_token <- function(token,
 
 ldc_table_aliases <- function(alias = NULL){
   aliases <- list("dataGap" = c("gap", "dataGap"),
-       "dataHeader" = c("header", "dataHeader"),
-       "dataHeight" = c("height", "heights", "dataHeight"),
-       "dataLPI" = c("lpi", "LPI", "dataLPI"),
-       "dataSoilStability" = c("soilstability", "dataSoilStability"),
-       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-       "geoIndicators" = c("indicators", "geoIndicators"),
-       "geoSpecies" = c("species", "geoSpecies"),
-       "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-       "tblProject" = c("project", "projects", "tblProject"))
+                       "dataHeader" = c("header", "dataHeader"),
+                       "dataHeight" = c("height", "heights", "dataHeight"),
+                       "dataLPI" = c("lpi", "LPI", "dataLPI"),
+                       "dataSoilStability" = c("soilstability", "dataSoilStability"),
+                       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
+                       "geoIndicators" = c("indicators", "geoIndicators"),
+                       "geoSpecies" = c("species", "geoSpecies"),
+                       "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
+                       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+                       "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
+                       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
+                       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
+                       "tblProject" = c("project", "projects", "tblProject"))
   
   if (is.null(alias)) {
     aliases
