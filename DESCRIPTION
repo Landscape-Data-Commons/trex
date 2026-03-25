@@ -14,12 +14,13 @@ Imports:
     dplyr,
     stringr,
     tidyr, 
-    sf, 
-    magrittr, 
+    sf,
     rlang,
     utils,
     stats,
-    microbenchmark
+    microbenchmark,
+    askpass,
+    keyring
 Suggests: knitr, rmarkdown
 Depends: R (>= 4.3.0)
 VignetteBuilder: knitr
