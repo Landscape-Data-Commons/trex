@@ -2,92 +2,10 @@
 # stringr
 # httr
 # jsonlite
+# 
+# 
 
-#' Get an access token for the Landscape Data Commons API
-#' @description A function for retrieving an access token for the Landscape Data
-#' Commons API based on a username and password. The token is returned as a
-#' specially-formatted list that can be used as the `token` argument in
-#' [fetch_ldc()], [fetch_ldc_spatial()], and [fetch_ldc_ecosite()].
-#' 
-#' Some data in the LDC are fully available to the public and can be accessed
-#' without an account, but some are restricted to accounts with specific
-#' permissions and will not be returned without a valid token. The `username`
-#' and `password` values must belong to an account which has already been
-#' created at https://api.landscapedatacommons.org/login/.
-#' 
-#' Best practice for using this function is to use it to retrieve and store a
-#' token in the working environment and then provide it to the fetching
-#' functions in addition to the username and password. They will use the token
-#' unless it has expired in which case they will retrieve a new token
-#' automatically using the provided `username` and `password`. If a fetching
-#' function informs you that it retrieved a new token, continuing to fetch will
-#' retrieve a new token every time because the new tokens are internal to the
-#' fetching process so consider rerunning the `get_ldc_token()` to get a new
-#' token to reuse before continuing to fetch. A token is valid for one hour
-#' after being retrieved.
-#'
-#' @param username Character string. The username tied to the Landscape Data Commons API account to use.
-#' @param password Character string. The password to supply to the Landscape Data Commons API.
-#' @returns A list structured for use as the `token` argument in the [fetch_ldc()] family of functions.
-#' @examples
-#' # To get a token to use for multiple data fetchings:
-#' current_token <- get_ldc_token(username = "account email address",
-#'                                password = "account password")
-#' # To use the token to fetch the first 100 LPI records available to the account:
-#' lpi_data <- fetch_ldc(data_type = "lpi",
-#'                       token = current_token,
-#'                       username = "account email address",
-#'                       password = "account password",
-#'                       take = 100)
-#' @export
 
-get_ldc_token <- function(username,
-                          password) {
-  if (is.character(username)) {
-    if (length(username) > 1) {
-      stop("Your username must be a single character string.")
-    }
-  } else {
-    stop("Your username must be a single character string.")
-  }
-  if (is.character(password)) {
-    if (length(password) > 1) {
-      stop("Your password must be a single character string.")
-    }
-  } else {
-    stop("Your password must be a single character string.")
-  }
-  
-  # Attempt to get an authentication response
-  authentication_response <- httr::POST(url = "https://oox5sjuicqhezohcpnbsesp32y0yrcbm.lambda-url.us-east-1.on.aws/",
-                                        body = list(username = username, 
-                                                    password = password),
-                                        encode = "json")
-  
-  # What if there's an error????
-  if (httr::http_error(authentication_response)) {
-    stop(paste0("Retrieving authentication token from the API failed with status ",
-                authentication_response$status_code))
-  }
-  
-  output_raw_character <- rawToChar(authentication_response[["content"]])
-  
-  if (grepl(x = output_raw_character, pattern = "^Error")) {
-    stop(output_raw_character)
-  }
-  
-  
-  output <- jsonlite::fromJSON(txt = rawToChar(authentication_response[["content"]]))[["AuthenticationResult"]]
-  
-  # We'll add an expiration time so we can check the need for a refreshed token
-  # without making an API call that gets rejected.
-  # This cuts 5 seconds off just as a bit of buffer.
-  output[["expiration_time"]] <- Sys.time() + output[["ExpiresIn"]] - 5
-  # Turns out this was overengineered, but keeping it for future reference.
-  # output[["expiration_time"]] <- lubridate::as_date(lubridate::seconds(Sys.time()) + lubridate::seconds(output[["ExpiresIn"]] - 5))
-  
-  output
-}
 
 #' Fetching data from the Landscape Data Commons via API query
 #' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
@@ -98,12 +16,14 @@ get_ldc_token <- function(username,
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
 #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
-#' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
+# #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{2000} (2 seconds).
 #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param coerce Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}. 
+# #' @param verb Character string. The method for submitting an API request, either \code{"POST"} or \code{"GET"}. Defaults to \code{"POST"}.
+#' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
