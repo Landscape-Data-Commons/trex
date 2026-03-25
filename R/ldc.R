@@ -801,6 +801,363 @@ coerce_ldc <- function(data,
   data_coerced
 }
 
+query_ldc_post <- function(data_type,
+                           body_string = NULL,
+                           api_key = NULL,
+                           base_url = "https://api.landscapedatacommons.org/api/v1/",
+                           timeout = 300,
+                           verbose = FALSE){
+  user_agent <- "http://github.com/Landscape-Data-Commons/trex"
+  
+  # If there's no body string provided,
+  if (is.null(body_string)) {
+    if (verbose) {
+      message("No body_string value provided.")
+    }
+    body_string <- "{}"
+  }
+  if (verbose) {
+    message("Querying using the body:")
+    message(body_string)
+  }
+  
+  # Full query response using the API key if we've got one.
+  if (is.null(api_key)) {
+    if (verbose) {
+      message("No API key provided. Only publicly accessible data will be returned.")
+    }
+    response <- httr::POST(url = paste0(base_url,
+                                        data_type),
+                           # These helper functions will build the header because
+                           # httr::POST() takes these unnamed arguments and uses
+                           # them in the header by default.
+                           httr::timeout(timeout),
+                           httr::user_agent(user_agent),
+                           httr::content_type_json(),
+                           body = body_string,
+                           encode = "json")
+    
+  } else {
+    if (verbose) {
+      message("Qualifying data available with the permissions associated with the provided API key will be returned.")
+    }
+    response <- httr::POST(url = paste0(base_url,
+                                        data_type),
+                           # These helper functions will build the header because
+                           # httr::POST() takes these unnamed arguments and uses
+                           # them in the header by default.
+                           httr::timeout(timeout),
+                           httr::user_agent(user_agent),
+                           httr::content_type_json(),
+                           httr::add_headers(.headers = c("X-API-Key" = api_key)),
+                           body = body_string,
+                           encode = "json")
+  }
+  
+  # What if there's an error????
+  if (httr::http_error(response)) {
+    if (response$status_code == 500) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and using trex::fetch_ldc_metadata() to see which variables are in which tables."))
+    } else if (response$status_code == 502) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which is likely due to a server-side issue. Please contact the LDC admin if this problem persists."))
+    } else if (response$status_code == 401) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which is probably due to an expired or invalid API key. Double check that your API key is still valid and consider re-setting it using store_api_key() in case there was a typo."))
+    } else {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  ". Please contact the LDC admin if this problem persists after troubleshooting."))
+    }
+  }
+  
+  # Grab only the data portion
+  response_content <- response[["content"]]
+  # Convert from raw to character
+  content_character <- rawToChar(response_content)
+  # Convert from character to data frame
+  content_df <- jsonlite::fromJSON(content_character) |>
+    as.data.frame(x = _)
+  
+  if (nrow(content_df) < 1 & is.null(api_key) & verbose) {
+    message("No records were returned, but that may be because no API key was provided and any qualifying records require permissions to access.")
+  }
+  
+  content_df
+}
+
+
+stringify_query_parameter <- function(variable,
+                                      operator = "equals",
+                                      values){
+  # This is structured like a list for the convenience of maintenance. Although
+  # it's inefficient, the next step is to convert it into a data frame because
+  # that's easier to use and it's still computationally very cheap.
+  recognized_operators <- list("gt" = c("gt",
+                                        "greaterthan",
+                                        "greater",
+                                        ">"),
+                               "gte" = c("gte",
+                                         "greaterthanequal",
+                                         "greaterthanorequal",
+                                         "greaterorequal",
+                                         ">="),
+                               "lt" = c("lt",
+                                        "lessthan",
+                                        "less",
+                                        "<"),
+                               "lte" = c("lte",
+                                         "lessthanequal",
+                                         "lessthanorequal",
+                                         "lessorequal",
+                                         "<="),
+                               "ne" = c("ne",
+                                        "notequal",
+                                        "notequalto",
+                                        "doesnotequal",
+                                        "!="),
+                               "e" = c("e",
+                                       "equals",
+                                       "equalto",
+                                       "in",
+                                       "oneof",
+                                       "="))
+  recognized_operators <- lapply(X = names(recognized_operators),
+                                 recognized_operators = recognized_operators,
+                                 FUN = function(X, recognized_operators){
+                                   data.frame(operator = X,
+                                              aliases = recognized_operators[[X]])
+                                 }) |>
+    dplyr::bind_rows()
+  
+  if (!is.character(operator) | length(operator) != 1) {
+    stop(paste0("The operator argument must be a single character string. See documentation for valid operators, which include: ",
+                paste(unique(recognized_operators$operator),
+                      collapse = ", "), "."))
+  }
+  
+  if (!(operator %in% recognized_operators$aliases)) {
+    stop(paste0("The current operator ", operator, " is not recognized. See documentation for valid operators, which include: ",
+                paste(unique(recognized_operators$operator),
+                      collapse = ", "), "."))
+  }
+  
+  if (!(operator %in% recognized_operators$aliases[recognized_operators$operator %in% c("e", "ne")])) {
+    if (!is.numeric(values) | length(values) != 1) {
+      stop(paste0("Because the provided operator is ", operator, " the values argument must be a single numeric value."))
+    }
+  } else if (!is.numeric(values) & !is.character(values)) {
+    stop(paste0("The values argument must be a single value or vector of values, either numeric or character string(s)."))
+  }
+  
+  if (is.character(values)) {
+    values_character_vector <- paste0('"', values, '"')
+  } else {
+    values_character_vector <- as.character(values)
+  }
+  values_string <- paste(values_character_vector,
+                         collapse = ",")
+  if (length(values_character_vector) > 1) {
+    values_string <- paste0("[", . = values_string, "]")
+  }
+  
+  # Get the proper operator for the API
+  operator <- recognized_operators$operator[recognized_operators$aliases == operator]
+  
+  # In the case that the operator is literally anything other than "equal to" we
+  # need to put the operator information into the output string.
+  # The API defaults to assuming that it's "equal to", so we can just skip that
+  # if it's the case.
+  if (operator != "e") {
+    output <- paste0('"', variable, '":{"$', operator, '":',
+                     values_string, "}")
+  } else {
+    output <- paste0('"', variable, '":',
+                     values_string)
+  }
+  
+  output
+}
+
+
+#' Format query parameters for use with the LDC API using POST
+#' @description
+#' This converts specially-formatted lists (or already correctly-formatted strings) into a single character string suitable for use as body of a POST submission to the LDC API. If a variable appears more than once in the inputs, it will be combined in the output. Currently, this does not support the use of AND or OR with parameters and so all parameters will be assessed using AND. In the case of conflicting parameters (i.e., using "equals" with any other operator for the same variable) impossible operators will be dropped. 
+#' @param ... The parameters for the query. These can be provided in three different ways:
+#' 1) NAMED arguments where the names are the variables in the data table to use for the query parameters and the values of the arguments are named lists. The lists must be formatted so that the names within the list are the operators to use and the values are vectors of the values associated with each operator. For example, \code{"Latitude" = list(">=" = 40, "<" = 50)} will produce an output to request data where the variable Latitude contains a value greater than or equal to 40 and less than 50.
+#' 2) A list of named lists formatted as previously described. The names of the lists must be the names of the variables that they apply to, e.g. \code{list("Longitude" = list(">=" = -105, "<=" = -100), "Latitude" = list("gt" = 40, "lt" = 50))}. This is to make it easier to programmatically generate queries.
+#' 3) Parameter strings as produced by \code{stringify_query_parameter()}. If using options 1 or 2, those lists will be run through \code{stringify_query_parameter()}.
+#' 
+#' Valid operators (and therefore names within lists) are:
+#' * \code{"!="} to exclude one or more values from the query results, e.g., \code{"Source" = list("!=" = "BLM_AIM")} will prevent records with "BLM_AIM" in the Source variable from being included in query results.
+#' * \code{"="} to limit query results to where only the specified value or values occur, e.g. \code{"Source" = list("=" = c("BLM_AIM", "LMF"))} will prevent records with any value other than "BLM_AIM" or "LMF" in the Source variable from being included in query results.
+#' * \code{">"} to limit query results to only where values greater than the provided number occur, e.g. \code{"Longitude" = list(">" = 40)} will prevent records with any value less than or equal to 40 in the Longitude variable from being included in query results.
+#' * \code{">="} to limit query results to only where values greater than or equal to the provided number occur, e.g. \code{"Longitude" = list(">=" = 40)} will prevent records with any value less than 40 in the Longitude variable from being included in query results.
+#' * \code{"<"} to limit query results to only where values less than the provided number occur, e.g. \code{"Longitude" = list(">" = 40)} will prevent records with any value greater than or equal to 40 in the Longitude variable from being included in query results.
+#' * \code{"<="} to limit query results to only where values less than the provided number occur, e.g. \code{"Longitude" = list(">=" = 40)} will prevent records with any value greater than 40 in the Longitude variable from being included in query results.
+#' 
+#' A list may contain multiple operators, e.g., \code{"Latitude" = list(">" = -105, "<" = -100)} will limit query results to only records where the Latitude value is between -105 and -100.
+#' 
+#' @returns A character string suitable for use as the body of a POST submission to the LDC API.
+format_query_parameters <- function(...){
+  parameter_list <- list(...)
+  
+  # To support either passing in each parameter as its own argument OR passing
+  # in a list/vector of the same, we'll unlist if there's no names for
+  # parameter_list because passing in a list of parameters should result in
+  # parameter_list just being an unnamed list containing that list.
+  if (is.null(names(parameter_list))) {
+    parameter_list <- unlist(x = parameter_list,
+                             recursive = FALSE)
+  }
+  
+  # This is a very quick-and-dirty check that I'm sure will be inadequate in the
+  # case that a user doesn't read the documentation or that I've written it
+  # poorly
+  if (!all(sapply(X = parameter_list, FUN = is.list)) &
+      !all(sapply(X = parameter_list, FUN = is.character))) {
+    stop("Unrecognized input format. Please see documentation for guidance on formatting.")
+  }
+  
+  # Now we build the strings per parameter (if they aren't already strings)
+  if (all(sapply(X = parameter_list, FUN = is.list))) {
+    parameter_vector <- lapply(X = seq_len(length(parameter_list)),
+                               parameter_list = parameter_list,
+                               FUN = function(X, parameter_list){
+                                 current_variable <- names(parameter_list)[X]
+                                 current_parameters <- parameter_list[[X]]
+                                 
+                                 sapply(X = seq_len(length(current_parameters)),
+                                        current_parameters = current_parameters,
+                                        current_variable = current_variable,
+                                        FUN = function(X, current_parameters, current_variable){
+                                          stringify_query_parameter(variable = current_variable,
+                                                                    operator = names(current_parameters)[X],
+                                                                    values = current_parameters[[X]])
+                                        })
+                               }) |>
+      unlist()
+  } else {
+    parameter_vector <- parameter_list
+  }
+  
+  # This bit figures out the contents of the strings and combines them
+  # appropriately. In the interest of ease-of-maintenance rather than elegance
+  # there's no specialized version of this for non-string inputs above and this
+  # relies on turning them into strings first.
+  
+  if (length(parameter_vector) == 1) {
+    combined_parameters <- parameter_vector
+  } else {
+    # Get the variables that each query parameter references.
+    variables <- sapply(X = parameter_vector,
+                        # This pattern will extract only the names of variables
+                        # from the beginnings of the strings. It assumes that all
+                        # variable names consist only of alphabetic characters,
+                        # digits, and underscores. This prevents it from
+                        # incorrectly extracting up through any present operators.
+                        pattern = '(?<=^")[A-z_\\d]+(?=":)',
+                        FUN = stringr::str_extract) |>
+      unname()
+    
+    if (any(is.na(variables))) {
+      stop('Unable to identify the variable name for one or more of the supplied parameters. Please check parameter formatting. Keep in mind that the operator must be specified, even when providing specific values to restrict to, e.g., list("ProjectKey" = list("equals" = c("BLM_AIM", "LandPKS")))')
+    }
+    
+    # The goal is to combine parameters where possible, so this identifies the
+    # indices corresponding to each unique variable present in the parameters.
+    variable_groups <- lapply(X = unique(variables),
+                              variables = variables,
+                              FUN = function(X, variables){
+                                which(variables == X)
+                              }) |>
+      setNames(object = _,
+               nm = unique(variables))
+    
+    # For each variable, grab the parameters and combine them.
+    combined_parameters <- lapply(X = names(variable_groups),
+                                  variable_groups = variable_groups,
+                                  parameter_vector = parameter_vector,
+                                  FUN = function(X, variable_groups, parameter_vector){
+                                    current_variable <- X
+                                    current_parameters <- unlist(parameter_vector[variable_groups[[current_variable]]])
+                                    
+                                    operators <- stringr::str_extract(string = current_parameters,
+                                                                      pattern = '(?<=")\\$[a-z]+(?=":)') |>
+                                      tidyr::replace_na(data = _,
+                                                        replace = " ")
+                                    
+                                    if (any(table(operators) > 1)) {
+                                      stop("This package does not currently support building a query that uses an operator more than once for a variable, e.g. expressing '(>= 12 AND < 20) OR (> 50 AND < 80)'. The API does support this, however, and query_ldc() will accept a hand-written query which uses this feature.")
+                                    }
+                                    
+                                    # parameter_value_strings <- stringr::str_extract_all(string = current_parameters,
+                                    #                                                     pattern = "(?<=\\:\\[?).+\\]?\\}?$") |>
+                                    parameter_value_strings <- stringr::str_remove_all(string = current_parameters,
+                                                                                       pattern = "^.+\\:") |>
+                                      stringr::str_remove_all(string = _,
+                                                              pattern = "\\}?") |>
+                                      unlist() |>
+                                      setNames(object = _,
+                                               nm = operators)
+                                    
+                                    # Add brackets back if needed
+                                    
+                                    nonequal_operators <- setdiff(x = operators,
+                                                                  y = " ")
+                                    
+                                    if (" " %in% operators & length(nonequal_operators) > 0) {
+                                      warning(paste0("Because the 'equals' operator is present for the variable ", current_variable,
+                                                     " the following operators and their associated values will be dropped: ",
+                                                     paste(nonequal_operators,
+                                                           collapse = ", "), "."))
+                                      operators <- operators[operators %in% c(" ")]
+                                      parameter_value_strings <- parameter_value_strings[names(parameter_value_strings) %in% c(" ")]
+                                    }
+                                    
+                                    output <- paste0('"', operators, '":',
+                                                     parameter_value_strings) |>
+                                      # Because the lack of an operator is parsed
+                                      # as "equals" and internally-to-this-function
+                                      # handled with a " ", this removes the space
+                                      # plus the quotation marks around it and the
+                                      # colon following it.
+                                      stringr::str_remove_all(string = _,
+                                                              pattern = '" ":') |>
+                                      paste(. = _,
+                                            collapse = ",")
+                                    # And because a situation where the user is
+                                    # only using "equals" means that there
+                                    # shouldn't be {} wrapped around the [],
+                                    # we'll just not add those curly braces.
+                                    if (identical(operators, c(" "))) {
+                                      output <- paste0('"', current_variable, '":',
+                                                       output,
+                                                       "")
+                                    } else {
+                                      output <- paste0('"', current_variable, '":{',
+                                                       output,
+                                                       "}")
+                                    }
+                                    
+                                    output
+                                  }) |>
+      setNames(object = _,
+               nm = names(variable_groups))
+  }
+  
+  
+  paste(combined_parameters,
+        collapse = ",") |>
+    paste0("{",
+           . = _,
+           "}")
+}
+
 # This isn't exported right now and is for internal use.
 query_ldc <- function(query,
                       token = NULL,
