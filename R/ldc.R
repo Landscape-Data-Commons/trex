@@ -118,39 +118,43 @@ get_ldc_token <- function(username,
 #' @export
 fetch_ldc <- function(keys = NULL,
                       key_type = NULL,
-                      query_parameters,
+                      query_parameters = list(),
                       data_type,
                       username = NULL,
-                      password = NULL,
-                      token = NULL,
-                      key_chunk_size = 100,
+                      api_key_name = NULL,
+                      # key_chunk_size = 100,
                       timeout = 300,
                       take = 10000,
                       delay = 2000,
                       exact_match = TRUE,
                       coerce = TRUE,
-                      verb = "POST",
+                      # verb = "POST",
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
                       verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
-  # base_url <- "https://api.landscapedatacommons.org/api/v1/"
+  
+  if (is.null(username) & !is.null(api_key_name)) {
+    warning("Although an api_key_name has been specified, no username has been provided and so no stored API key will be retrieved.")
+    api_key_name <- NULL
+  }
   
   # This list stores the actual name of the table as understood by the API as
   # the index names and the aliases understood by trex as the vectors of values
   valid_tables <- list("dataGap" = c("gap", "dataGap"),
-    "dataHeader" = c("header", "dataHeader"),
-    "dataHeight" = c("height", "heights", "dataHeight"),
-    "dataLPI" = c("lpi", "LPI", "dataLPI"),
-    "dataSoilStability" = c("soilstability", "dataSoilStability"),
-    "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-    "geoIndicators" = c("indicators", "geoIndicators"),
-    "geoSpecies" = c("species", "geoSpecies"),
-    "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-    "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-    "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
-    "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-    "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-    "tblProject" = c("project", "projects", "tblProject"))
+                       "dataHeader" = c("header", "dataHeader"),
+                       "dataHeight" = c("height", "heights", "dataHeight"),
+                       "dataLPI" = c("lpi", "LPI", "dataLPI"),
+                       "dataSoilStability" = c("soilstability", "dataSoilStability"),
+                       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
+                       "geoIndicators" = c("indicators", "geoIndicators"),
+                       "geoSpecies" = c("species", "geoSpecies"),
+                       # "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
+                       "tblAero" = c("aero", "AERO", "tblaero", "tblAero"),
+                       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+                       "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
+                       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
+                       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
+                       "tblProject" = c("project", "projects", "tblProject"))
   
   # This converts it to a data frame.
   valid_tables <- lapply(X = names(valid_tables),
@@ -182,18 +186,33 @@ fetch_ldc <- function(keys = NULL,
     stop("Must provide key_type when providing keys.")
   }
   
+  # Make sure we've got a query_parameters list even if they're using the stupid
+  # old arguments from the dark ages
+  if (!any(sapply(X = list(keys, key_type), FUN = is.null))) {
+    if (verbose) {
+      message("Adding the provided keys to the query_parameters list. Consider skipping the keys and key_type arguments and simply using the query_parameter argument instead.")
+    }
+    query_parameters[["key_type"]] <- list("=" = keys)
+  }
+  
   # This uses the metadata to confirm that the query won't return an error due
   # to referencing a variable that doesn't exist in the requested table.
-  if (class(key_type) == "character") {
-    available_variables <- fetch_ldc_metadata(data_type = data_type) |>
-      dplyr::pull(.data = _,
-                  var = "field")
-    if (!(key_type %in% available_variables)) {
-      stop(paste0("The variable ", key_type, " does not appear in ", current_table,
-                  ". Possible valid key_type values for ", current_table, " are: ",
-                  paste(available_variables,
-                        collapse = ", ")))
-    }
+  
+  available_variables <- fetch_ldc_metadata(data_type = data_type) |>
+    dplyr::pull(.data = _,
+                var = "field")
+  
+  query_variables <- names(query_parameters)
+  
+  unavailable_variables <- setdiff(x = query_variables,
+                                   y = available_variables)
+  
+  if (length(unavailable_variables) > 0) {
+    stop(paste0("The following query variables does not appear in ", current_table,
+                ": ", paste(unavailable_variables,
+                            collapse = ", "), "\n\nPossible valid key_type values for ", current_table, " are: ",
+                paste(available_variables,
+                      collapse = ", ")))
   }
   
   if (!is.null(take)) {
@@ -205,6 +224,9 @@ fetch_ldc <- function(keys = NULL,
     }
   }
   
+  # Add take to the parameters
+  query_parameters[["take"]] <- list("=" = take)
+  
   if (delay < 0) {
     stop("delay must be a positive numeric value.")
   } else {
@@ -213,16 +235,11 @@ fetch_ldc <- function(keys = NULL,
     delay <- delay * 10^6
   }
   
-  # Check the user credentials
-  token <- check_token(token = token,
-                       username = username,
-                       password = password,
-                       verbose = verbose)
-  if (verbose & is.null(token)) {
-    message("No credentials provided. Retrieving only data which do not require credentials.")
+  if (verbose & is.null(api_key_name)) {
+    message("Retrieving only data which do not require credentials.")
   }
   
-    # If there are no keys, grab the whole table
+  # If there are no keys, grab the whole table
   if (is.null(keys)) {
     if (verbose) {
       message("No keys provided; retrieving all records.")
@@ -327,200 +344,44 @@ fetch_ldc <- function(keys = NULL,
   
   querying_start_time <- Sys.time()
   
-  for (current_query in queries) {
-    token <- check_token(token = token,
-                         username = username,
-                         password = password,
-                         verbose = verbose)
-    # The token might expire and need refreshing!
-    # if (!is.null(token)) {
-    #   if (Sys.time() > token[["expiration_time"]]) {
-    #     if (verbose) {
-    #       message("Current API bearer authorization token has expired. Attempting to request a new one.")
-    #     }
-    #     if (!is.null(username) & !is.null(password)) {
-    #       token <- get_ldc_token(username = username,
-    #                              password = password)
-    #     } else {
-    #       warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
-    #       token <- NULL
-    #     }
-    #   }
-    # }
+  keep_querying <- TRUE
+  data_list <- list()
+  while (keep_querying) {
+    if (verbose) {
+      message("Submitting query to the API.")
+    }
     
-    # We handle things differently if there's no take value
-    if (is.null(take)) {
+    current_data <- query_ldc_post(data_type = data_type,
+                                   body_string = format_query_parameters(query_parameters),
+                                   api_key = get_stored_key(username = username,
+                                                            api_key_name = api_key_name),
+                                   base_url = base_url,
+                                   timeout = timeout,
+                                   verbose = verbose)
+    
+    # Bind that onto the end of the list
+    # The data are wrapped in list() so that it gets added
+    # as a data frame instead of as a vector for each variable
+    data_list <- c(data_list,
+                   list(current_data))
+    
+    if (nrow(current_data) < take) {
       if (verbose) {
-        message("Attempting to query LDC with:")
-        message(current_query)
+        message("All qualifying data available with the provided credentials have been returned.")
       }
-      
-      content_df <- query_ldc(query = current_query,
-                              token = token,
-                              timeout = 300)
-      
-      # # Full query response using the token if we've got one.
-      # if (is.null(token)) {
-      #   response <- httr::GET(url = current_query,
-      #                         httr::timeout(timeout),
-      #                         httr::user_agent(user_agent))
-      #   
-      # } else {
-      #   response <- httr::GET(url = current_query,
-      #                         httr::timeout(timeout),
-      #                         httr::user_agent(user_agent),
-      #                         httr::add_headers(Authorization = paste("Bearer",
-      #                                                                 token[["IdToken"]])))
-      # }
-      # 
-      # if (verbose) {
-      #   message("Response received from server. Attempting to parse it into a data frame.")
-      # }
-      # 
-      # # What if there's an error????
-      # if (httr::http_error(response)) {
-      #   if (response$status_code == 500) {
-      #     stop(paste0("Query failed with status ",
-      #                 response$status_code,
-      #                 " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and consult https://api.landscapedatacommons.org/api-docs to see which variables are in which tables."))
-      #   } else {
-      #     stop(paste0("Query failed with status ",
-      #                 response$status_code))
-      #   }
-      # }
-      # 
-      # # Grab only the data portion
-      # response_content <- response[["content"]]
-      # # Convert from raw to character
-      # content_character <- rawToChar(response_content)
-      # # Convert from character to data frame
-      # content_df <- jsonlite::fromJSON(content_character) |>
-      #   as.data.frame(x = _)
-      
+      keep_querying <- FALSE
     } else {
-      # OKAY! So handling using take and cursor options for
-      # anything non-header
-      # The first query needs to not specify the cursor position
-      # and then after that we'll keep trying with the last
-      # rid value as the cursor until we get an empty
-      # response
       if (verbose) {
-        message(paste0("Retrieving records in chunks of ", take))
+        message(paste0("The previous query returned exactly the maximum number of records with the current value for take (", take, "). Checking to see if there are additional qualifying records."))
       }
+      query_parameters[["cursor"]] <- max(current_data$rid)
+      # Should be unnecessary, but just to be safe!
+      keep_querying <- TRUE
       
-      # Gotta make sure that we use a ? if there are no keys being passed or a
-      # "&" if there are.
-      query_contains_questionmark <- stringr::str_detect(string = current_query,
-                                                         pattern = paste0(base_url,
-                                                                          current_table,
-                                                                          "\\?"))
-      # if (verbose) {
-      #   if (query_contains_questionmark) {
-      #     message("This query already has a ? due to the presence of other parameters, using an &.")
-      #   } else {
-      #     message("This query does not already have a ? due to a lack of other parameters, using an ?.")
-      #   }
-      # }
-      
-      
-      # So this uses either ? or & to add the take value to the query depending
-      # on if there was a ? present in the query already.
-      current_query <- paste0(current_query,
-                              ifelse(test = query_contains_questionmark,
-                                     yes = "&",
-                                     no = "?"),
-                              "take=", take)
-      
-      if (verbose) {
-        message("Attempting to query LDC with:")
-        message(current_query)
-      }
-      
-      current_content_df <- query_ldc(query = current_query,
-                                      token = token,
-                                      timeout = timeout)
-      
-      
-      content_df_list <- list(current_content_df)
-      
-      # Here's where we start iterating as long as we're still
-      # getting data
-      # So while the last returned response wasn't empty,
-      # keep requesting the next response where the cursor
-      # is set to the rid following the the highest rid in
-      # the last chunk
-      while (nrow(content_df_list[[length(content_df_list)]]) == take) {
-        if (verbose) {
-          message("The server may have additional qualifying records. Attempting to request them.")
-        }
-        # And to avoid flooding the API server with requests,
-        # we'll put in a delay here.
-        # This gets the current time then spins its wheels,
-        # checking repeatedly to see if enough time has
-        # elapsed, at which point it moves on
-        start_time <- microbenchmark::get_nanotime()
-        repeat {
-          current_time <- microbenchmark::get_nanotime()
-          elapsed_time <- current_time - start_time
-          if (elapsed_time > delay) {
-            break
-          }
-        }
-        
-        # CURSOR HANDLING!!!!!!!!!!!!
-        # There's been some back-and-forth with the API on how to specify the
-        # cursor position. Right now (2025-06-13) the way it works is that the
-        # cursor references the RID in the table.
-        # Example:
-        # Submitted request:
-        #    /api/v1/dataLPI?take=1&cursor=496815
-        # Server-side SQL query:
-        #    SELECT *
-        #    FROM public_test.datalpi_filtered_view
-        #    WHERE 1 = 1 AND "rid" > 496815 ORDER BY rid ASC LIMIT 1
-        # So, the strategy here is just to use the highest value for RID in the
-        # last returned records as the cursor for the next request.
-        cursor_position <- dplyr::last(content_df_list) |>
-          dplyr::pull(.data = _,
-                      var = rid) |>
-          max()
-        
-        # NO LONGER CORRECT, BUT HELD HERE JUST IN CASE
-        # The cursor is based on the indices that the user can see, so the
-        # previous solution using the RIDs won't work when the user's access is
-        # restricted to a subset of the data.
-        # cursor_position <- sapply(X = content_df_list,
-        #                           FUN = nrow) |>
-        #   sum()
-        
-        current_next_query <- paste0(current_query, "&cursor=", cursor_position)
-        
-        if (verbose) {
-          message("Attempting to query LDC with:")
-          message(current_next_query)
-        }
-        
-        token <- check_token(token = token,
-                             username = username,
-                             password = password,
-                             verbose = verbose)
-        
-        current_content_df <- query_ldc(query = current_next_query,
-                                        token = token,
-                                        timeout = timeout)
-        
-        
-        # Bind that onto the end of the list
-        # The data are wrapped in list() so that it gets added
-        # as a data frame instead of as a vector for each variable
-        content_df_list <- c(content_df_list, list(current_content_df))
-      }
-      content_df <- do.call(rbind,
-                            content_df_list)
-      
-      # And another delay for between individual queries
-      # that were generated by the key chunking instead of
-      # by take
+      # And to avoid flooding the API server with requests, we'll put in a delay
+      # here.
+      # This gets the current time then spins its wheels, checking repeatedly to
+      # see if enough time has elapsed, at which point it moves on.
       start_time <- microbenchmark::get_nanotime()
       repeat {
         current_time <- microbenchmark::get_nanotime()
@@ -530,13 +391,6 @@ fetch_ldc <- function(keys = NULL,
         }
       }
     }
-    # Append whatever it is that we got back to our collection of results from
-    # the assorted queries.
-    # This is important because some queries may actually take multiple requests
-    # if there's a non-NULL take value, so each index in data_list will be the
-    # results from the original query (based on key chunks) or that plus any
-    # follow-up queries made due to take.
-    data_list <- c(data_list, list(content_df))
   }
   
   # This is so that we can tell the user how long it took to grab all the data.
@@ -560,30 +414,12 @@ fetch_ldc <- function(keys = NULL,
   }
   
   # Combine all the results of the queries
-  data <- do.call(rbind,
-                  data_list)
+  data <- dplyr::bind_rows(data_list)
   
   # If there aren't data, let the user know
   if (length(data) < 1) {
-    warning("No data retrieved. Confirm that your keys and key_type are correct and that you've provided valid credentials (if the data are not publicly accessible).")
+    warning("No data retrieved. Confirm that your query parameters are qqorrect and that you've used a valid API key (if the data are not publicly accessible).")
     return(NULL)
-  } else {
-    # If there are data and the user gave keys, find which if any are missing
-    if (!is.null(keys) & exact_match) {
-      # Note that we're using keys_vector_original because even if we made
-      # alterations to keys_vector, the actual retrieved keys should match the
-      # original values despite substituting unicode references for illegal characters
-      missing_keys <- keys_vector_original[!(keys_vector_original %in% data[[key_type]])]
-      if (length(missing_keys) > 0) {
-        warning(paste0(if (is.null(token) & (is.null(username) | is.null(password))) {
-          "Some keys were not associated with publicly-available data. Using LDC credentials (either username and password or a token) may return data for the following keys: "
-        } else {
-          "The following keys were not associated with returned data using the provided LDC credentials: "
-        },
-        paste(missing_keys,
-              collapse = ",")))
-      }
-    }
   }
   
   # Coerce as necessary and requested!
