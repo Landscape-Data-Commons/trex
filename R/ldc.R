@@ -629,9 +629,6 @@ fetch_ldc_metadata <- function(data_type,
 #' @returns The original data frame, \code{data}, with variables coerced as possible and necessary.
 #' @export
 coerce_ldc <- function(data,
-                       # lookup_table = NULL,
-                       # field_var = NULL,
-                       # field_type_var = NULL,
                        data_type,
                        base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
                        verbose = FALSE) {
