@@ -734,7 +734,7 @@ coerce_ldc <- function(data,
   data_coerced
 }
 
-query_ldc_post <- function(data_type,
+query_ldc <- function(data_type,
                            body_string = NULL,
                            api_key = NULL,
                            base_url = "https://api.landscapedatacommons.org/api/v1/",
@@ -1091,52 +1091,6 @@ format_query_parameters <- function(...){
            "}")
 }
 
-# This isn't exported right now and is for internal use.
-query_ldc <- function(query,
-                      token = NULL,
-                      timeout = 300){
-  user_agent <- "http://github.com/Landscape-Data-Commons/trex"
-  # Full query response using the token if we've got one.
-  if (is.null(token)) {
-    response <- httr::GET(url = query,
-                          httr::timeout(timeout),
-                          httr::user_agent(user_agent))
-    
-  } else {
-    response <- httr::GET(url = query,
-                          httr::timeout(timeout),
-                          httr::user_agent(user_agent),
-                          httr::add_headers(Authorization = paste("Bearer",
-                                                                  token[["IdToken"]])))
-  }
-  
-  # What if there's an error????
-  if (httr::http_error(response)) {
-    if (response$status_code == 500) {
-      stop(paste0("Query failed with status ",
-                  response$status_code,
-                  " which may be due to a very large number of records returned or attempting to query using a variable that doesn't occur in the requested data table. Consider setting the take argument to 10000 or less and using trex::fetch_ldc_metadata() to see which variables are in which tables."))
-    } else if (response$status_code == 502) {
-      stop(paste0("Query failed with status ",
-                  response$status_code,
-                  " which is likely due to a server-side issue. Please contact the LDC admin if this problem persists."))
-    } else {
-      stop(paste0("Query failed with status ",
-                  response$status_code,
-                  ". Please contact the LDC admin if this problem persists after troubleshooting."))
-    }
-  }
-  
-  # Grab only the data portion
-  response_content <- response[["content"]]
-  # Convert from raw to character
-  content_character <- rawToChar(response_content)
-  # Convert from character to data frame
-  content_df <- jsonlite::fromJSON(content_character) |>
-    as.data.frame(x = _)
-  
-  content_df
-}
 
 check_token <- function(token,
                         username = NULL,
