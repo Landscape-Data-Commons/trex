@@ -242,7 +242,7 @@ fetch_ldc <- function(keys = NULL,
       message("Submitting query to the API.")
     }
     
-    current_data <- query_ldc_post(data_type = data_type,
+    current_data <- query_ldc(data_type = data_type,
                                    body_string = format_query_parameters(query_parameters),
                                    api_key = get_stored_key(username = username,
                                                             api_key_name = api_key_name),
@@ -350,10 +350,8 @@ fetch_ldc <- function(keys = NULL,
 #' @export
 fetch_ldc_spatial <- function(polygons,
                               data_type,
-                              token = NULL,
                               username = NULL,
-                              password = NULL,
-                              key_chunk_size = 100,
+                              api_key_name = NULL,
                               timeout = 300,
                               take = NULL,
                               delay =  500,
@@ -372,13 +370,32 @@ fetch_ldc_spatial <- function(polygons,
   polygons <- sf::st_transform(x = polygons,
                                crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs")
   
+  # Get the NAD83 lat/long constraints for the polygons so that we can snag only
+  # the header records in the bounding box.
+  current_query_parameters <- sf::st_transform(x = polygons,
+                                           crs = 4269) |>
+    sf::st_bbox(obj = _) |>
+    lapply(X = c("x", "y"),
+           current_bounding_coordinates = _,
+           inequalities = c(">=",
+                            "<="),
+           FUN = function(X, current_bounding_coordinates, inequalities){
+             list(unname(current_bounding_coordinates[paste0(X, "min")]),
+                  unname(current_bounding_coordinates[paste0(X, "max")])) |>
+               setNames(object = _,
+                        nm = inequalities)
+           }) |>
+    setNames(object = _,
+             nm = c("Longitude_NAD83",
+                                     "Latitude_NAD83"))
+  
   if (verbose) {
     message("Fetching the header information from the LDC.")
   }
   headers_df <- fetch_ldc(data_type = "header",
-                          token = token,
+                          query_parameters = current_query_parameters,
                           username = username,
-                          password = password,
+                          api_key_name = api_key_name,
                           verbose = verbose,
                           timeout = timeout,
                           base_url = base_url)
@@ -418,15 +435,11 @@ fetch_ldc_spatial <- function(polygons,
       output <- sf::st_drop_geometry(output)
     }
   } else {
-    output <- fetch_ldc(keys = intersected_primarykeys,
-                        key_type = "PrimaryKey",
-                        data_type = data_type,
-                        token = token,
+    output <- fetch_ldc(data_type = data_type,
+                        query_parameters = list("PrimaryKey" = list("=" = intersected_primarykeys)),
                         username = username,
-                        password = password,
-                        key_chunk_size = key_chunk_size,
+                        api_key_name = api_key_name,
                         timeout = timeout,
-                        exact_match = TRUE,
                         delay = delay,
                         base_url = base_url,
                         verbose = verbose)
@@ -462,16 +475,13 @@ fetch_ldc_spatial <- function(polygons,
 #' # To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
 #' fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")
 #' @export
-fetch_ldc_ecosite <- function(keys,
-                              data_type,
-                              token = NULL,
+fetch_ldc_ecosite <- function(data_type,
+                              ecosite_ids,
                               username = NULL,
-                              password = NULL,
-                              key_chunk_size = 100,
+                              api_key_name = NULL,
                               timeout = 300,
                               take = NULL,
                               delay = 500,
-                              exact_match = TRUE,
                               base_url = "https://api.landscapedatacommons.org/api/v1/",
                               verbose = FALSE) {
   # First order of business: grab the header info for sampling locations that
@@ -479,17 +489,13 @@ fetch_ldc_ecosite <- function(keys,
   if (verbose) {
     message("Retrieving header information")
   }
-  current_headers <- fetch_ldc(keys = keys,
-                               key_type = "EcologicalSiteID",
+  current_headers <- fetch_ldc(query_parameters = list("EcologicalSiteID" = list("=" = ecosite_ids)),
                                data_type = "header",
-                               token = token,
                                username = username,
-                               password = password,
-                               key_chunk_size = key_chunk_size,
+                               api_key_name = api_key_name,
                                timeout = timeout,
-                               take = NULL,
-                               delay = 500,
-                               exact_match = exact_match,
+                               take = take,
+                               delay = delay,
                                base_url = base_url,
                                verbose = verbose)
   
@@ -507,17 +513,13 @@ fetch_ldc_ecosite <- function(keys,
     message("Retrieving requested data with relevant PrimaryKeys.")
   }
   # Grab the relevant data with the PrimaryKeys
-  fetch_ldc(keys = current_primarykeys,
-            key_type = "PrimaryKey",
+  fetch_ldc(query_parameters = list("PrimaryKey" = list("=" = current_primarykeys)),
             data_type = data_type,
-            token = token,
             username = username,
-            password = password,
-            key_chunk_size = key_chunk_size,
+            api_key_name = api_key_name,
             timeout = timeout,
             take = take,
             delay = delay,
-            exact_match = TRUE,
             base_url = base_url,
             verbose = verbose)
 }
@@ -1025,7 +1027,7 @@ format_query_parameters <- function(...){
                                                         replace = " ")
                                     
                                     if (any(table(operators) > 1)) {
-                                      stop("This package does not currently support building a query that uses an operator more than once for a variable, e.g. expressing '(>= 12 AND < 20) OR (> 50 AND < 80)'. The API does support this, however, and query_ldc() will accept a hand-written query which uses this feature.")
+                                      stop("This package does not currently support building a query that uses an operator more than once for a variable, e.g. expressing '(>= 12 AND < 20) OR (> 50 AND < 80)'. The API does support this, however, and query_ldc() will accept a hand-written query which uses this feature as the body_string argument.")
                                     }
                                     
                                     # parameter_value_strings <- stringr::str_extract_all(string = current_parameters,
