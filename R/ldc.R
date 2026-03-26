@@ -58,41 +58,12 @@ fetch_ldc <- function(keys = NULL,
     api_key_name <- NULL
   }
   
-  # This list stores the actual name of the table as understood by the API as
-  # the index names and the aliases understood by trex as the vectors of values
-  valid_tables <- list("dataGap" = c("gap", "dataGap"),
-                       "dataHeader" = c("header", "dataHeader"),
-                       "dataHeight" = c("height", "heights", "dataHeight"),
-                       "dataLPI" = c("lpi", "LPI", "dataLPI"),
-                       "dataSoilStability" = c("soilstability", "dataSoilStability"),
-                       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-                       "geoIndicators" = c("indicators", "geoIndicators"),
-                       "geoSpecies" = c("species", "geoSpecies"),
-                       # "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-                       "tblAero" = c("aero", "AERO", "tblaero", "tblAero"),
-                       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-                       "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
-                       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-                       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-                       "tblProject" = c("project", "projects", "tblProject"))
+  # Get the API-recognized name for the submitted alias
+  current_table <- ldc_table_aliases(alias = data_type)
   
-  # This converts it to a data frame.
-  valid_tables <- lapply(X = names(valid_tables),
-                         valid_tables = valid_tables,
-                         FUN = function(X, valid_tables){
-                           data.frame(table_name = X,
-                                      data_type = valid_tables[[X]])
-                         }) |>
-    dplyr::bind_rows()
-  
-  if (!(data_type %in% valid_tables$data_type)) {
-    stop(paste0("data_type must be one of the following character strings (some are aliases of each other): ",
-                paste(valid_tables$data_type,
-                      collapse = ", "),
-                "."))
+  if (any(!sapply(X = list(keys, key_type), FUN = is.null))) {
+    warning("The arguments key and key_type are slated to be deprecated in a future release. Their functionality has been superceded by query_parameters.")
   }
-  
-  current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
   
   if (!(class(keys) %in% c("character", "NULL"))) {
     stop("keys must be a character string, vector of character strings, or NULL.")
@@ -569,46 +540,8 @@ fetch_ldc_metadata <- function(data_type,
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   # base_url <- "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name="
   
-  # This list stores the actual name of the table as understood by the API as
-  # the index names and the aliases understood by trex as the vectors of values
-  valid_tables <- list(#"schema" = c("tbl-schema"),
-    "dataGap" = c("gap", "dataGap"),
-    "dataHeader" = c("header", "dataHeader"),
-    "dataHeight" = c("height", "heights", "dataHeight"),
-    "dataLPI" = c("lpi", "LPI", "dataLPI"),
-    "dataSoilStability" = c("soilstability", "dataSoilStability"),
-    "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-    "geoIndicators" = c("indicators", "geoIndicators"),
-    "geoSpecies" = c("species", "geoSpecies"),
-    "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-    "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-    "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
-    "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-    "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-    "tblProject" = c("project", "projects", "tblProject"))
-  
-  # This converts it to a data frame.
-  # It's a distinct second step because I need X to be the actual table name and
-  # not the vector of aliases so that I can add the proper name in a variable in
-  # each data frame.
-  valid_tables <- lapply(X = names(valid_tables),
-                         valid_tables = valid_tables,
-                         FUN = function(X, valid_tables){
-                           data.frame(table_name = X,
-                                      data_type = valid_tables[[X]])
-                         }) |>
-    dplyr::bind_rows()
-  
-  if (!(data_type %in% valid_tables$data_type)) {
-    stop(paste0("data_type must be one of the following character strings (some are aliases of each other): ",
-                paste(valid_tables$data_type,
-                      collapse = ", "),
-                "."))
-  }
-  
-  # Just using that lookup table to snag the value that the server will
-  # recognize.
-  current_table <- valid_tables[["table_name"]][valid_tables$data_type == data_type]
+  # Get the API-recognized name for the submitted alias
+  current_table <- ldc_table_aliases(alias = data_type)
   
   
   if (delay < 0) {
@@ -1290,28 +1223,28 @@ check_token <- function(token,
 
 ldc_table_aliases <- function(alias = NULL){
   aliases <- list("dataGap" = c("gap", "dataGap"),
-                       "dataHeader" = c("header", "dataHeader"),
-                       "dataHeight" = c("height", "heights", "dataHeight"),
-                       "dataLPI" = c("lpi", "LPI", "dataLPI"),
-                       "dataSoilStability" = c("soilstability", "dataSoilStability"),
-                       "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-                       "geoIndicators" = c("indicators", "geoIndicators"),
-                       "geoSpecies" = c("species", "geoSpecies"),
-                       "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-                       "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-                       "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
-                       "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-                       "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-                       "tblProject" = c("project", "projects", "tblProject"))
+                  "dataHeader" = c("header", "dataHeader"),
+                  "dataHeight" = c("height", "heights", "dataHeight"),
+                  "dataLPI" = c("lpi", "LPI", "dataLPI"),
+                  "dataSoilStability" = c("soilstability", "dataSoilStability"),
+                  "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
+                  "geoIndicators" = c("indicators", "geoIndicators"),
+                  "geoSpecies" = c("species", "geoSpecies"),
+                  "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
+                  "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
+                  "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
+                  "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
+                  "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
+                  "tblProject" = c("project", "projects", "tblProject"))
   
   if (is.null(alias)) {
     aliases
   } else {
     output <- names(aliases)[sapply(X = aliases,
-                          alias = alias,
-                          FUN = function(X, alias){
-                            alias %in% X
-                          })]
+                                    alias = alias,
+                                    FUN = function(X, alias){
+                                      alias %in% X
+                                    })]
     if (length(output) < 1) {
       stop(paste0(alias, " is not a recognized alias for any table in the LDC. Please use trex::ldc_table_aliases() to see which aliases are recognized."))
     }
