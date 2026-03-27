@@ -11,18 +11,19 @@
 #' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
 #' 
 #' There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
-#' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
-#' @param key_type Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
-#' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
-#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
-#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
+# #' @param keys Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
+# #' @param key_type Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.
+#' @param data_type Character string. The type of data to query. Note that any variables specified in \code{query_parameters} must appear in the table corresponding to \code{data_type}. To see all valid values, use \code{ldc_table_names()}.
+#' @param query_parameters List. A list of query parameters which can be recognized by (\code{link[=format_query_parameters]{format_query_parameters()}}) and converted into a query for the API, e.g., \code{list("ProjectKey" = list("equals" = "BLM_AIM"))}. Defaults to an empty list which is equivalent to requesting all available records.
+#' @param username Optional character string. The username associated with the LDC API account and which has been used to store one or more API keys using (\code{link[=store_api_key]{store_api_key()}}). This is almost certainly an email address. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. Defaults to \code{NULL}.
+#' @param api_key_name Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.
+# #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 # #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{2000} (2 seconds).
-#' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
+# #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param coerce Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}. 
-# #' @param verb Character string. The method for submitting an API request, either \code{"POST"} or \code{"GET"}. Defaults to \code{"POST"}.
 #' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
@@ -30,28 +31,68 @@
 #' \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
 #' \code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}} will query for data by ecological site ID.
 #' @examples
-#' # To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
-#' headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
-#' # To retrieve all LPI data collected in ecological sites in the 036X Major Land Resource Area (MLRA)
-#' relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data_type = "header", exact_match = FALSE)
-#' lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
+#' # To retrieve all sampling location metadata collected in the ecological
+#' # sites R036XB006NM and R036XB007NM.
+#' headers <- fetch_ldc(query_parameters = list("EcologicalSiteID" = list("=" = c("R036XB006NM",
+#'                                                                                "R036XB007NM"))),
+#'                                         data_type = "header")
+#'                                         
+#' # To retrieve all Line-Point Intercept collected between 40 and 45 degrees
+#' # latitude (inclusive) and east of -115 degrees longitude (exclusive).
+#' lpi_data <- fetch_ldc(query_parameters = list("Latitude_NAD83" = list(">=" = 40,
+#'                                                                       "<=" = 45),
+#'                                               "Longitude_NAD83" = list(">" = -115)),
+#'                       data_type = "lpi")
+#'                                         
 #' @export
-fetch_ldc <- function(keys = NULL,
-                      key_type = NULL,
+fetch_ldc <- function(data_type,
                       query_parameters = list(),
-                      data_type,
                       username = NULL,
                       api_key_name = NULL,
-                      # key_chunk_size = 100,
                       timeout = 300,
                       take = 10000,
                       delay = 2000,
-                      exact_match = TRUE,
                       coerce = TRUE,
-                      # verb = "POST",
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
-                      verbose = FALSE) {
+                      verbose = FALSE,
+                      keys = deprecated(),
+                      key_type = deprecated(),
+                      password = deprecated(),
+                      token = deprecated(),
+                      key_chunk_size = deprecated(),
+                      exact_match = deprecated()) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
+  
+  if (lifecycle::is_present(keys) | lifecycle::is_present(key_type)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = I("Support for the `key_type` and `keys` arguments of `fetch_ldc()`"),
+                              details = "These arguments have been deprecated in favor of query_parameters which supports multiple variables instead of just one.")
+  }
+  if (lifecycle::is_present(key_chunk_size)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc(key_chunk_size)",
+                              details = "API queries now use POST which has rendered key_chunk_size irrelevant.")
+  }
+  if (lifecycle::is_present(password)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc(password)",
+                              details = "The use of a plaintext password argument is no longer supported due to changes in LDC API credential handling. Please use the api_key_name in conjunction with setup_keyring() and store_api_key() instead.")
+  }
+  if (lifecycle::is_present(token)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc(token)",
+                              details = "Changes in LDC API credential handling mean that tokens are no longer supported. Please use the api_key_name argument in conjunction with setup_keyring() and store_api_key() instead.")
+  }
+  if (lifecycle::is_present(exact_match)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc(exact_match)",
+                              details = "Partial string matching is not currently supported by the LDC API so the behavior is now always equivalent to exact_match = TRUE.")
+  }
+  if (lifecycle::is_present(exact_match)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc(exact_match)",
+                              details = "Partial string matching is not currently supported by the LDC API so the behavior is now always equivalent to exact_match = TRUE.")
+  }
   
   if (is.null(username) & !is.null(api_key_name)) {
     warning("Although an api_key_name has been specified, no username has been provided and so no stored API key will be retrieved.")
@@ -59,32 +100,28 @@ fetch_ldc <- function(keys = NULL,
   }
   
   # Get the API-recognized name for the submitted alias
-  current_table <- ldc_table_aliases(alias = data_type)
+  data_type <- ldc_table_names(alias = data_type)
   
-  if (any(!sapply(X = list(keys, key_type), FUN = is.null))) {
-    warning("The arguments key and key_type are slated to be deprecated in a future release. Their functionality has been superceded by query_parameters.")
-  }
-  
-  if (!(class(keys) %in% c("character", "NULL"))) {
-    stop("keys must be a character string, vector of character strings, or NULL.")
-  }
-  
-  if (!(class(key_type) %in% c("character", "NULL"))) {
-    stop("key_type must be a character string or NULL.")
-  }
-  
-  if (!is.null(keys) & is.null(key_type)) {
-    stop("Must provide key_type when providing keys.")
-  }
-  
-  # Make sure we've got a query_parameters list even if they're using the stupid
-  # old arguments from the dark ages
-  if (!any(sapply(X = list(keys, key_type), FUN = is.null))) {
-    if (verbose) {
-      message("Adding the provided keys to the query_parameters list. Consider skipping the keys and key_type arguments and simply using the query_parameter argument instead.")
-    }
-    query_parameters[["key_type"]] <- list("=" = keys)
-  }
+  # if (!(class(keys) %in% c("character", "NULL"))) {
+  #   stop("keys must be a character string, vector of character strings, or NULL.")
+  # }
+  # 
+  # if (!(class(key_type) %in% c("character", "NULL"))) {
+  #   stop("key_type must be a character string or NULL.")
+  # }
+  # 
+  # if (!is.null(keys) & is.null(key_type)) {
+  #   stop("Must provide key_type when providing keys.")
+  # }
+  # 
+  # # Make sure we've got a query_parameters list even if they're using the stupid
+  # # old arguments from the dark ages
+  # if (!any(sapply(X = list(keys, key_type), FUN = is.null))) {
+  #   if (verbose) {
+  #     message("Adding the provided keys to the query_parameters list. Consider using the query_parameter argument instead.")
+  #   }
+  #   query_parameters[[key_type]] <- list("=" = keys)
+  # }
   
   # This uses the metadata to confirm that the query won't return an error due
   # to referencing a variable that doesn't exist in the requested table.
@@ -99,9 +136,9 @@ fetch_ldc <- function(keys = NULL,
                                    y = available_variables)
   
   if (length(unavailable_variables) > 0) {
-    stop(paste0("The following query variables does not appear in ", current_table,
+    stop(paste0("The following query variables does not appear in ", data_type,
                 ": ", paste(unavailable_variables,
-                            collapse = ", "), "\n\nPossible valid key_type values for ", current_table, " are: ",
+                            collapse = ", "), "\n\nPossible valid key_type values for ", data_type, " are: ",
                 paste(available_variables,
                       collapse = ", ")))
   }
@@ -113,10 +150,17 @@ fetch_ldc <- function(keys = NULL,
     if (take > 10000) {
       warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
     }
+  } else {
+    if (verbose) {
+      message("No take value was specified. Defaulting to 10000.")
+    }
+    take <- 10000
   }
   
   # Add take to the parameters
-  query_parameters[["take"]] <- list("=" = take)
+  if (!is.null(take)) {
+    query_parameters[["take"]] <- list("=" = take)
+  }
   
   if (delay < 0) {
     stop("delay must be a positive numeric value.")
@@ -128,102 +172,6 @@ fetch_ldc <- function(keys = NULL,
   
   if (verbose & is.null(api_key_name)) {
     message("Retrieving only data which do not require credentials.")
-  }
-  
-  # If there are no keys, grab the whole table
-  if (is.null(keys)) {
-    if (verbose) {
-      message("No keys provided; retrieving all records.")
-    }
-    if (!is.null(key_type)) {
-      warning("No keys provided. Ignoring key_type and retrieving all records.")
-    }
-    queries <- paste0(base_url,
-                      current_table)
-  } else {
-    # If there are keys, chunk them then build queries
-    # This helps prevent queries so long that they fail
-    if (verbose) {
-      message("Grouping keys into chunks for queries.")
-    }
-    # We don't know whether the keys came in as a vector of single keys or if
-    # one or more of the character strings contains keys separated by commas
-    # so we're going to handle that an get a vector of single-key strings
-    keys_vector <- unlist(lapply(X = keys,
-                                 FUN = function(X) {
-                                   trimws(unlist(stringr::str_split(string = X,
-                                                                    pattern = ",")))
-                                 }))
-    # OKAY! So it turns out that it's not impossible for keys to contain
-    # ampersands which will result in malformed API queries, so we'll replace
-    # them with the unicode reference %26
-    keys_vector_original <- keys_vector
-    keys_vector <- gsub(x = keys_vector,
-                        pattern = "[&]",
-                        replacement = "%26")
-    keys_vector <- gsub(x = keys_vector,
-                        pattern = " ",
-                        replacement = "%20")
-    
-    if (verbose & !identical(keys_vector_original, keys_vector)) {
-      warning("Some keys provided contained illegal characters and have been sanitized. All available data should still be retrieved for all provided keys.")
-    }
-    
-    if (!exact_match) {
-      if (verbose) {
-        message("Using non-exact matching for the key value.")
-      }
-      if (length(keys_vector) > 1) {
-        warning("There are multiple provided key values. Non-exact matching will only consider the first.")
-      }
-      keys_vector <- keys_vector[1]
-    }
-    
-    # Figure out how many chunks to break these into based on the max number of
-    # keys in a chunk
-    key_chunk_count <- ceiling(length(keys_vector) / key_chunk_size)
-    
-    # Make the key chunks
-    # For each chunk, figure out the appropriate indices and paste together the
-    # relevant key values into strings that we can use to build per-chunk queries
-    keys_chunks <- sapply(X = 1:key_chunk_count,
-                          keys_vector = keys_vector,
-                          key_chunk_size = key_chunk_size,
-                          key_count = length(keys_vector),
-                          FUN = function(X, keys_vector, key_chunk_size, key_count) {
-                            min_index <- max(c(1, (X - 1) * key_chunk_size + 1))
-                            max_index <- min(c(key_count, X * key_chunk_size))
-                            indices <- min_index:max_index
-                            paste(keys_vector[indices],
-                                  collapse = ",")
-                          })
-    
-    if (verbose) {
-      if (length(keys_chunks == 1)) {
-        message("Building query.")
-      } else {
-        message("Building queries.")
-      }
-    }
-    
-    if (exact_match) {
-      queries <- paste0(base_url,
-                        current_table,
-                        "?",
-                        key_type,
-                        "=",
-                        keys_chunks)
-    } else {
-      # This adds "Like" to the end of the variable name to do a search for a
-      # non-exact match. The object is still called "queries" even though it
-      # had better be a single string instead of a vector.
-      queries <- paste0(base_url,
-                        current_table,
-                        "?",
-                        key_type,
-                        "Like=",
-                        keys_chunks)
-    }
   }
   
   # Use the queries to snag data
@@ -243,12 +191,12 @@ fetch_ldc <- function(keys = NULL,
     }
     
     current_data <- query_ldc(data_type = data_type,
-                                   body_string = format_query_parameters(query_parameters),
-                                   api_key = get_stored_key(username = username,
-                                                            api_key_name = api_key_name),
-                                   base_url = base_url,
-                                   timeout = timeout,
-                                   verbose = verbose)
+                              body = query_parameters,
+                              api_key = get_stored_key(username = username,
+                                                       api_key_name = api_key_name),
+                              base_url = base_url,
+                              timeout = timeout,
+                              verbose = verbose)
     
     # Bind that onto the end of the list
     # The data are wrapped in list() so that it gets added
@@ -265,7 +213,7 @@ fetch_ldc <- function(keys = NULL,
       if (verbose) {
         message(paste0("The previous query returned exactly the maximum number of records with the current value for take (", take, "). Checking to see if there are additional qualifying records."))
       }
-      query_parameters[["cursor"]] <- max(current_data$rid)
+      query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
       # Should be unnecessary, but just to be safe!
       keep_querying <- TRUE
       
@@ -333,12 +281,13 @@ fetch_ldc <- function(keys = NULL,
 #' @param polygons Polygon sf object. The polygon or polygons describing the area to retrieve data from. Only records from sampling locations falling within this area will be returned.
 #' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
 #' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
-#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
-#' @param key_chunk_size Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
+# #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
+# #' @param key_chunk_size Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
 #' @param return_spatial Logical. If \code{TRUE} then the returned data will be an sf object. Otherwise if this is \code{FALSE} it will be a simple data frame. Defaults to \code{TRUE}.
+#' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which came from locations within \code{polygons}.
 #' @seealso
@@ -353,11 +302,13 @@ fetch_ldc_spatial <- function(polygons,
                               username = NULL,
                               api_key_name = NULL,
                               timeout = 300,
-                              take = NULL,
+                              take = 10000,
                               delay =  500,
                               return_spatial = TRUE,
                               base_url = "https://api.landscapedatacommons.org/api/v1/",
-                              verbose = FALSE) {
+                              verbose = FALSE,
+                              password = deprecated(),
+                              key_chunk_size = deprecated()) {
   if (!("sf" %in% class(polygons))) {
     stop("polygons must be a polygon sf object")
   }
@@ -368,12 +319,13 @@ fetch_ldc_spatial <- function(polygons,
   sf::st_agr(x = polygons) <- "constant"
   # And get the polygons into the correct CRS
   polygons <- sf::st_transform(x = polygons,
-                               crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs")
+                               crs = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +type=crs") |>
+    sf::st_make_valid(x = _)
   
   # Get the NAD83 lat/long constraints for the polygons so that we can snag only
   # the header records in the bounding box.
   current_query_parameters <- sf::st_transform(x = polygons,
-                                           crs = 4269) |>
+                                               crs = 4269) |>
     sf::st_bbox(obj = _) |>
     lapply(X = c("x", "y"),
            current_bounding_coordinates = _,
@@ -387,7 +339,7 @@ fetch_ldc_spatial <- function(polygons,
            }) |>
     setNames(object = _,
              nm = c("Longitude_NAD83",
-                                     "Latitude_NAD83"))
+                    "Latitude_NAD83"))
   
   if (verbose) {
     message("Fetching the header information from the LDC.")
@@ -429,7 +381,7 @@ fetch_ldc_spatial <- function(polygons,
   intersected_primarykeys <- unique(header_polygons_intersection$PrimaryKey)
   
   # Grab only the data associated with the PrimaryKey values we've got
-  if (data_type == "header") {
+  if (data_type == "dataHeader") {
     output <- headers_sf[headers_sf$PrimaryKey %in% intersected_primarykeys, ]
     if (!return_spatial) {
       output <- sf::st_drop_geometry(output)
@@ -459,15 +411,16 @@ fetch_ldc_spatial <- function(polygons,
 #' @description This is a wrapper for \code{\link[=fetch_ldc]{fetch_ldc()}} which streamlines retrieving data by ecological site IDs. Most tables in the LDC do not include ecological site information and so this function will identify the PrimaryKeys associated with the requested ecological site(s) and retrieve the requested data associated with those PrimaryKeys.
 #' 
 #' When you already know the associated PrimaryKeys, use \code{\link[=fetch_ldc]{fetch_ldc()}} instead. If you want to retrieve data associated with polygons, use \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}.
-#' @param keys Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.
 #' @param data_type Character string. The type of data to query. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.
-#' @param username Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.
-#' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
-#' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
+#' @param ecosite_ids Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.
+#' @param username Optional character string. The username associated with the LDC API account and which has been used to store one or more API keys using (\code{link[=store_api_key]{store_api_key()}}). This is almost certainly an email address. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. Defaults to \code{NULL}.
+#' @param api_key_name Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.
+# #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
+# #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param take Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.
-#' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
+# #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
@@ -475,7 +428,9 @@ fetch_ldc_spatial <- function(polygons,
 #' \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.
 #' @examples
 #' # To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
-#' fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")
+#' fetch_ldc_ecosite(data_type = "lpi",
+#'                   ecosite_ids = c("R036XB006NM",
+#'                                   "R036XB007NM"))
 #' @export
 fetch_ldc_ecosite <- function(data_type,
                               ecosite_ids,
@@ -485,7 +440,16 @@ fetch_ldc_ecosite <- function(data_type,
                               take = NULL,
                               delay = 500,
                               base_url = "https://api.landscapedatacommons.org/api/v1/",
-                              verbose = FALSE) {
+                              verbose = FALSE,
+                              keys = deprecated(),
+                              key_chunk_size = deprecated(),
+                              exact_match = deprecated()) {
+  if (lifecycle::is_present(keys)) {
+    lifecycle::deprecate_warn(when = "2.0.0",
+                              what = "fetch_ldc_ecosite(keys)",
+                              with = "fetch_ldc_ecosite(ecosite_ids)")
+  }
+  
   # First order of business: grab the header info for sampling locations that
   # match the ecosite(s) requested
   if (verbose) {
@@ -527,25 +491,25 @@ fetch_ldc_ecosite <- function(data_type,
 }
 
 #' Fetching data from the Landscape Data Commons via API query
-#' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
-#' 
-#' There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
-#' @param data_type Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
+#' @description
+#' A wrapper for (\code{\link[=fetch_ldc]{fetch_ldc()}}) which will return metadata for the specified table.
+#' @param data_type Character string. The type of data to query. To see all valid values, use \code{ldc_table_names()}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
 #' @param delay Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can cause issues, so adjust this as needed. Defaults to \code{500}.
+#' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of metadata for the requested table. The data frame will contain all variables returned from the server plus an additional character variable called \code{"data_class_r"} which contains the R equivalent to the class of the variable called \code{"data_type"}.
 #' @export
 fetch_ldc_metadata <- function(data_type,
                                timeout = 300,
                                delay = 500,
-                               base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
+                               base_url = "https://api.landscapedatacommons.org/api/v1",
                                verbose = FALSE) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   # base_url <- "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name="
   
   # Get the API-recognized name for the submitted alias
-  current_table <- ldc_table_aliases(alias = data_type)
+  current_table <- ldc_table_names(alias = data_type)
   
   
   if (delay < 0) {
@@ -558,6 +522,7 @@ fetch_ldc_metadata <- function(data_type,
   
   # Build the query by slapping the table name on the end of the base URL.
   current_query <- paste0(base_url,
+                          "/tblSchemaplan?table_name=",
                           current_table)
   
   if (verbose) {
@@ -624,15 +589,19 @@ fetch_ldc_metadata <- function(data_type,
 
 
 #' A function for coercing data in a data frame into an expected format.
-#' @description Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
+#' @description Sometimes the data retrieved from the Landscape Data Commons is
+#' all character strings even though some variables should at least be numeric.
+#' This will coerce the variables into the correct format either using the
+#' metadata schema available through the Landscape Data Commons API or by simply
+#' attempting to coerce everything to numeric.
 #' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
-#' @param data_type Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.
+#' @param data_type Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. To see all valid values, use \code{ldc_table_names()}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns The original data frame, \code{data}, with variables coerced as possible and necessary.
 #' @export
 coerce_ldc <- function(data,
                        data_type,
-                       base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
+                       base_url = "https://api.landscapedatacommons.org/api/v1",
                        verbose = FALSE) {
   if (!is.null(data_type)) {
     if (verbose) {
@@ -735,20 +704,55 @@ coerce_ldc <- function(data,
   data_coerced
 }
 
+#' Submit a POST query to the LDC API
+#' @description
+#' Given a body string (or parsable list of query parameters) and a target table,
+#' return all matching records available with the permissions associated with any
+#' provided credentials.
+#' 
+#' This is the function used by all functions with names that start with "fetch_ldc".
+#' 
+#' @param data_type Character string. The type of data to query. To see all valid values, use \code{ldc_table_names()}.
+#' @param body Optional list or character string. This is passed to (\code{link[=format_query_parameters]{format_query_parameters()}}) before being included as the body of the POST submission to the API. If this is \code{NULL} then query will return all available records. Defaults to \code{NULL}.
+#' @param api_key OPTIONAL character string. The API key to submit with the request. It is very strongly recommended that you never, ever use your plaintext API key as the value here and instead use (\code{link[=get_stored_key]{get_stored_key()}}) to pull a previously-stored, encrypted key. If \code{NULL} then no key will be used and only data which do not require special permissions will be returned. Defaults to \code{NULL}.
+#' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
+#' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
+#' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
+#' @export
+#' @returns A data frame containing the response from the API.
+#' @seealso [fetch_ldc()], [fetch_ldc_spatial()], [fetch_ldc_ecosite()], and [fetch_ldc_metadata()]
 query_ldc <- function(data_type,
-                           body_string = NULL,
-                           api_key = NULL,
-                           base_url = "https://api.landscapedatacommons.org/api/v1/",
-                           timeout = 300,
-                           verbose = FALSE){
+                      body = NULL,
+                      api_key = NULL,
+                      timeout = 300,
+                      base_url = "https://api.landscapedatacommons.org/api/v1/",
+                      verbose = FALSE){
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
-  # If there's no body string provided,
-  if (is.null(body_string)) {
+  # If there's no body string provided, just grab everything
+  if (is.null(body)) {
     if (verbose) {
-      message("No body_string value provided.")
+      message("No body value provided. All available records will be returned.")
     }
     body_string <- "{}"
+  } else {
+    if (is.character(body)) {
+      body_string <- body
+    } else if (is.list(body)) {
+      if (length(body) < 1) {
+        if (verbose) {
+          message("The provided body value is an empty list. All available records will be returned.")
+        }
+        body_string <- "{}"
+      } else {
+        if (verbose) {
+          message("Attempting to convert the provided list of parameters into a character string.")
+        }
+        body_string <- format_query_parameters(body)
+      }
+    } else {
+      stop("If the argument body is not NULL it must either be a correctly-formatted string or a list that can be converted to a correctly-string with format_query_parameters().")
+    }
   }
   if (verbose) {
     message("Querying using the body:")
@@ -802,6 +806,10 @@ query_ldc <- function(data_type,
       stop(paste0("Query failed with status ",
                   response$status_code,
                   " which is probably due to an expired or invalid API key. Double check that your API key is still valid and consider re-setting it using store_api_key() in case there was a typo."))
+    } else if (response$status_code == 400) {
+      stop(paste0("Query failed with status ",
+                  response$status_code,
+                  " which is probably due to an incorrectly formatted query. Check the formatting of your query parameters."))
     } else {
       stop(paste0("Query failed with status ",
                   response$status_code,
@@ -824,65 +832,51 @@ query_ldc <- function(data_type,
   content_df
 }
 
-
+#' Create an API-parsable character string for a parameter
+#' @description
+#' Parameters submitted to the LDC API must be done via specifically-formatted
+#' character strings. This will produce a character string for a parameter.
+#' @param variable Character string. The name of the variable in the target table which the operator will be applied to.
+#' @param operator Character string. The name of the operator recognized by the LDC API or a valid alias, e.g. \code{">="}. The function (\code{\link[=ldc_api_operators]{ldc_api_operators()}}) can be used to see all recognized values for this argument. Defaults to \code{"equals"}.
+#' @param values Single character string or numeric value OR a vector of character strings or numeric values. The value or values to apply the operator to. In the case of any operators other than \code{"equals"} or \code{"notequalto"} \(or an equivalent alias\) this must be numeric and a single value rather than a vector.
+#' @returns A character string suitable for inclusion in the body of a POST submission to the LDC API.
+#' @export
+#' @examples
+#' # Produce a string that will limit the API's returned results to only records
+#' # where ProjectKey is "BLM_AIM" or "NWERN"
+#' stringify_query_parameter(variable = "ProjectKey",
+#'                           values = c("BLM_AIM", "NWERN"))
+#' stringify_query_parameter(variable = "ProjectKey",
+#'                           operator = "oneof",
+#'                           values = c("BLM_AIM", "NWERN"))
+#' stringify_query_parameter(variable = "ProjectKey",
+#'                           operator = "in",
+#'                           values = c("BLM_AIM", "NWERN"))
+#'                           
+#' # Produce a string that will limit the API's returned results to only records
+#' # where Latitude_NAD83 is greater than or equal to 40
+#' stringify_query_parameter(variable = "Latitude_NAD83",
+#'                           operator = ">="
+#'                           values = 40)
+#' stringify_query_parameter(variable = "Latitude_NAD83",
+#'                           operator = "gte"
+#'                           values = 40)
+#' 
 stringify_query_parameter <- function(variable,
                                       operator = "equals",
                                       values){
-  # This is structured like a list for the convenience of maintenance. Although
-  # it's inefficient, the next step is to convert it into a data frame because
-  # that's easier to use and it's still computationally very cheap.
-  recognized_operators <- list("gt" = c("gt",
-                                        "greaterthan",
-                                        "greater",
-                                        ">"),
-                               "gte" = c("gte",
-                                         "greaterthanequal",
-                                         "greaterthanorequal",
-                                         "greaterorequal",
-                                         ">="),
-                               "lt" = c("lt",
-                                        "lessthan",
-                                        "less",
-                                        "<"),
-                               "lte" = c("lte",
-                                         "lessthanequal",
-                                         "lessthanorequal",
-                                         "lessorequal",
-                                         "<="),
-                               "ne" = c("ne",
-                                        "notequal",
-                                        "notequalto",
-                                        "doesnotequal",
-                                        "!="),
-                               "e" = c("e",
-                                       "equals",
-                                       "equalto",
-                                       "in",
-                                       "oneof",
-                                       "="))
-  recognized_operators <- lapply(X = names(recognized_operators),
-                                 recognized_operators = recognized_operators,
-                                 FUN = function(X, recognized_operators){
-                                   data.frame(operator = X,
-                                              aliases = recognized_operators[[X]])
-                                 }) |>
-    dplyr::bind_rows()
+  
   
   if (!is.character(operator) | length(operator) != 1) {
-    stop(paste0("The operator argument must be a single character string. See documentation for valid operators, which include: ",
-                paste(unique(recognized_operators$operator),
-                      collapse = ", "), "."))
+    stop("The operator argument must be a single character string. Use ldc_api_operators() to see valid operators and their recognized aliases.")
   }
   
-  if (!(operator %in% recognized_operators$aliases)) {
-    stop(paste0("The current operator ", operator, " is not recognized. See documentation for valid operators, which include: ",
-                paste(unique(recognized_operators$operator),
-                      collapse = ", "), "."))
-  }
+  # Keeping this separate for a bit so we can provide meaningful error messages.
+  recognized_operator <- ldc_api_operators(operator = operator)
   
-  if (!(operator %in% recognized_operators$aliases[recognized_operators$operator %in% c("e", "ne")])) {
+  if (!(recognized_operator %in% c("e", "ne"))) {
     if (!is.numeric(values) | length(values) != 1) {
-      stop(paste0("Because the provided operator is ", operator, " the values argument must be a single numeric value."))
+      stop(paste0("Because the provided operator is ", operator, " which maps to the API operator ", recognized_operator, " the values argument must be a single numeric value."))
     }
   } else if (!is.numeric(values) & !is.character(values)) {
     stop(paste0("The values argument must be a single value or vector of values, either numeric or character string(s)."))
@@ -899,15 +893,12 @@ stringify_query_parameter <- function(variable,
     values_string <- paste0("[", . = values_string, "]")
   }
   
-  # Get the proper operator for the API
-  operator <- recognized_operators$operator[recognized_operators$aliases == operator]
-  
   # In the case that the operator is literally anything other than "equal to" we
   # need to put the operator information into the output string.
   # The API defaults to assuming that it's "equal to", so we can just skip that
   # if it's the case.
-  if (operator != "e") {
-    output <- paste0('"', variable, '":{"$', operator, '":',
+  if (recognized_operator != "e") {
+    output <- paste0('"', variable, '":{"$', recognized_operator, '":',
                      values_string, "}")
   } else {
     output <- paste0('"', variable, '":',
@@ -920,7 +911,7 @@ stringify_query_parameter <- function(variable,
 
 #' Format query parameters for use with the LDC API using POST
 #' @description
-#' This converts specially-formatted lists (or already correctly-formatted strings) into a single character string suitable for use as body of a POST submission to the LDC API. If a variable appears more than once in the inputs, it will be combined in the output. Currently, this does not support the use of AND or OR with parameters and so all parameters will be assessed using AND. In the case of conflicting parameters (i.e., using "equals" with any other operator for the same variable) impossible operators will be dropped. 
+#' This converts specially-formatted lists (or already correctly-formatted strings) into a single character string suitable for use as body of a POST submission to the LDC API. If a variable appears more than once in the inputs, it will be combined in the output. Currently, this does not support the use of AND or OR with parameters and so all parameters will be assessed using AND. In the case of conflicting parameters (i.e., using "equals" with any other operator for the same variable) impossible operators will be dropped.
 #' @param ... The parameters for the query. These can be provided in three different ways:
 #' 1) NAMED arguments where the names are the variables in the data table to use for the query parameters and the values of the arguments are named lists. The lists must be formatted so that the names within the list are the operators to use and the values are vectors of the values associated with each operator. For example, \code{"Latitude" = list(">=" = 40, "<" = 50)} will produce an output to request data where the variable Latitude contains a value greater than or equal to 40 and less than 50.
 #' 2) A list of named lists formatted as previously described. The names of the lists must be the names of the variables that they apply to, e.g. \code{list("Longitude" = list(">=" = -105, "<=" = -100), "Latitude" = list("gt" = 40, "lt" = 50))}. This is to make it easier to programmatically generate queries.
@@ -929,14 +920,33 @@ stringify_query_parameter <- function(variable,
 #' Valid operators (and therefore names within lists) are:
 #' * \code{"!="} to exclude one or more values from the query results, e.g., \code{"Source" = list("!=" = "BLM_AIM")} will prevent records with "BLM_AIM" in the Source variable from being included in query results.
 #' * \code{"="} to limit query results to where only the specified value or values occur, e.g. \code{"Source" = list("=" = c("BLM_AIM", "LMF"))} will prevent records with any value other than "BLM_AIM" or "LMF" in the Source variable from being included in query results.
-#' * \code{">"} to limit query results to only where values greater than the provided number occur, e.g. \code{"Longitude" = list(">" = 40)} will prevent records with any value less than or equal to 40 in the Longitude variable from being included in query results.
-#' * \code{">="} to limit query results to only where values greater than or equal to the provided number occur, e.g. \code{"Longitude" = list(">=" = 40)} will prevent records with any value less than 40 in the Longitude variable from being included in query results.
-#' * \code{"<"} to limit query results to only where values less than the provided number occur, e.g. \code{"Longitude" = list(">" = 40)} will prevent records with any value greater than or equal to 40 in the Longitude variable from being included in query results.
-#' * \code{"<="} to limit query results to only where values less than the provided number occur, e.g. \code{"Longitude" = list(">=" = 40)} will prevent records with any value greater than 40 in the Longitude variable from being included in query results.
+#' * \code{">"} to limit query results to only where values greater than the provided number occur, e.g. \code{"Latitude_NAD83" = list(">" = 40)} will prevent records with any value less than or equal to 40 in the Longitude variable from being included in query results.
+#' * \code{">="} to limit query results to only where values greater than or equal to the provided number occur, e.g. \code{"Latitude_NAD83" = list(">=" = 40)} will prevent records with any value less than 40 in the Longitude variable from being included in query results.
+#' * \code{"<"} to limit query results to only where values less than the provided number occur, e.g. \code{"Latitude_NAD83" = list(">" = 40)} will prevent records with any value greater than or equal to 40 in the Longitude variable from being included in query results.
+#' * \code{"<="} to limit query results to only where values less than the provided number occur, e.g. \code{"Latitude_NAD83" = list(">=" = 40)} will prevent records with any value greater than 40 in the Longitude variable from being included in query results.
 #' 
-#' A list may contain multiple operators, e.g., \code{"Latitude" = list(">" = -105, "<" = -100)} will limit query results to only records where the Latitude value is between -105 and -100.
+#' See (\code{\link[=ldc_api_operators]{ldc_api_operators()}}) for additional recognized operator aliases.
+#' 
+#' A list may contain multiple operators. For example, \code{"Longitude_NAD83" = list(">" = -105, "<" = -100)} will limit query results to only records where the Latitude value is between -105 and -100.
+#' 
+#' @examples
+#' # To produce a character string that can be used as the body for a query which
+#' # will return only records with Latitude_NAD83 values between 40 and 45 (inclusive)
+#' # and Longitude_NAD83 values greater than -115
+#' query_parameters <- list("Latitude_NAD83" = list(">=" = 40,
+#'                                                  "<=" = 45),
+#'                          "Longitude_NAD83" = list(">" = -115))
+#' body <- format_query_parameters(query_parameters)
+#' 
+#' # This is equivalent to above
+#' body_alternate <- format_query_parameters("Latitude_NAD83" = list(">=" = 40,
+#'                                                  "<=" = 45),
+#'                                           "Longitude_NAD83" = list(">" = -115))
+#' identical(body, body_alternate)
 #' 
 #' @returns A character string suitable for use as the body of a POST submission to the LDC API.
+#' @export
+#' @seealso [ldc_api_operators()], [stringify_query_parameters()] 
 format_query_parameters <- function(...){
   parameter_list <- list(...)
   
