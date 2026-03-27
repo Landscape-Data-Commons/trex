@@ -1093,33 +1093,124 @@ format_query_parameters <- function(...){
 }
 
 
-
-ldc_table_aliases <- function(alias = NULL){
-  aliases <- list("dataGap" = c("gap", "dataGap"),
-                  "dataHeader" = c("header", "dataHeader"),
-                  "dataHeight" = c("height", "heights", "dataHeight"),
-                  "dataLPI" = c("lpi", "LPI", "dataLPI"),
-                  "dataSoilStability" = c("soilstability", "dataSoilStability"),
-                  "dataSpeciesInventory" = c("speciesinventory", "dataSpeciesInventory"),
-                  "geoIndicators" = c("indicators", "geoIndicators"),
-                  "geoSpecies" = c("species", "geoSpecies"),
-                  "dataAeroSummary" = c("aero", "AERO", "aerosummary", "dataAeroSummary"),
-                  "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataPlotCharacterization"),
-                  "dataHorizontalFlux" = c("horizontalflux", "flux", "dataHorizontalFlux"),
-                  "dataSoilHorizons" = c("soil", "soilhorizons", "dataSoilHorizons"),
-                  "tblRHEM" = c("rhem", "RHEM", "tblRHEM"),
-                  "tblProject" = c("project", "projects", "tblProject"))
+#' Look up LDC table names
+#' @description
+#' Either get a data frame of tables in the LDC which can be queried or get the
+#' name of a table in the LDC that corresponds to a recognized human-friendly
+#' alias.
+#' @param alias Optional character string. A user-supplied name for a data type, e.g. \code{"gap"}. This is case-insensitive and will ignore whitespace and nonalphabetic characters. If \code{NULL} then the lookup table of LDC table names and recognized aliases will be returned instead. Defaults to \code{NULL}.
+#' @returns Either a data frame of LDC table names and their recognized aliases OR the name of an LDC table as a character string.
+#' @examples
+#' # Get the complete lookup table.
+#' ldc_table_lookup <- ldc_table_names()
+#' 
+#' # Get the name of the table associated with gap data.
+#' ldc_table_lookup <- ldc_table_names(alias = "gap")
+#' 
+ldc_table_names <- function(alias = NULL){
+  aliases <- list("dataGap" = c("gap", "datagap"),
+                  "dataHeader" = c("header", "dataheader"),
+                  "dataHeight" = c("height", "heights", "dataheight"),
+                  "dataLPI" = c("lpi", "linepoint", "linepointintercept", "datalpi"),
+                  "dataSoilStability" = c("soilstability", "datasoilstability"),
+                  "dataSpeciesInventory" = c("speciesinventory", "specinv", "dataspeciesinventory"),
+                  "geoIndicators" = c("indicators", "geoindicators"),
+                  "geoSpecies" = c("species", "geospecies"),
+                  "dataAeroSummary" = c("aero", "aerosummary", "dataaerosummary"),
+                  "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataplotcharacterization"),
+                  "dataHorizontalFlux" = c("horizontalflux", "flux", "datahorizontalflux"),
+                  "dataSoilHorizons" = c("soil", "soilhorizons", "horizons", "datasoilhorizons"),
+                  "tblRHEM" = c("rhem", "tblrhem"),
+                  "tblProject" = c("project", "projects", "tblproject"))
   
   if (is.null(alias)) {
-    aliases
+    lapply(X = names(aliases),
+           aliases = aliases,
+           FUN = function(X, aliases){
+             data.frame(table = X,
+                        alias = aliases[[X]])
+           }) |>
+      dplyr::bind_rows()
   } else {
     output <- names(aliases)[sapply(X = aliases,
                                     alias = alias,
                                     FUN = function(X, alias){
+                                      # Keep only the alphabetic characters
+                                      alias <- stringr::str_remove_all(string = alias,
+                                                                pattern = "[^[:alpha:]]") |>
+                                        tolower()
                                       alias %in% X
                                     })]
     if (length(output) < 1) {
-      stop(paste0(alias, " is not a recognized alias for any table in the LDC. Please use trex::ldc_table_aliases() to see which aliases are recognized."))
+      stop(paste0(alias, " is not a recognized alias for any table in the LDC. Please use trex::ldc_table_names() to see which aliases are recognized."))
+    }
+    output
+  }
+}
+
+#' Look up LDC operators
+#' @description
+#' Either get a data frame of operators recognized by the LDC API or the operator
+#' that corresponds to a recognized human-friendly alias.
+#' @param operator Optional character string. A user-supplied name for an operator, e.g. \code{"!="} or \code{"greaterthan"}. This is case-insensitive. If \code{NULL} then the lookup table of recognized operators and their aliases will be returned instead. Defaults to \code{NULL}.
+#' @returns Either a data frame of operators and their recognized aliases OR an operator as a character string.
+#' @examples
+#' # Get the complete lookup table.
+#' ldc_api_operator_lookup <- ldc_api_operators()
+#' 
+#' # Get the operator associated with an alias.
+#' ldc_api_operators(operator = "oneof")
+#' ldc_api_operators(operator = ">=")
+#' 
+ldc_api_operators <- function(operator = NULL){
+  # This is structured like a list for the convenience of maintenance.
+  recognized_operators <- list("gt" = c("gt",
+                                        "greaterthan",
+                                        "greater",
+                                        ">"),
+                               "gte" = c("gte",
+                                         "greaterthanequal",
+                                         "greaterthanorequal",
+                                         "greaterorequal",
+                                         ">="),
+                               "lt" = c("lt",
+                                        "lessthan",
+                                        "less",
+                                        "<"),
+                               "lte" = c("lte",
+                                         "lessthanequal",
+                                         "lessthanorequal",
+                                         "lessorequal",
+                                         "<="),
+                               "ne" = c("ne",
+                                        "notequal",
+                                        "notequalto",
+                                        "doesnotequal",
+                                        "!="),
+                               "e" = c("e",
+                                       "equals",
+                                       "equalto",
+                                       "in",
+                                       "oneof",
+                                       "="))
+  
+  
+  if (is.null(operator)) {
+    lapply(X = names(recognized_operators),
+           recognized_operators = recognized_operators,
+           FUN = function(X, recognized_operators){
+             data.frame(api_operator = X,
+                        alias = recognized_operators[[X]])
+           }) |>
+      dplyr::bind_rows()
+  } else {
+    output <- names(recognized_operators)[sapply(X = recognized_operators,
+                                                 operator = operator,
+                                                 FUN = function(X, operator){
+                                                   tolower(operator) %in% X
+                                                 })]
+    if (length(output) < 1) {
+      stop(paste0(operator, " is not a recognized alias for any operator supported by the LDC API. Please use trex::ldc_api_operators() to see which aliases are recognized."))
     }
     output
   }
