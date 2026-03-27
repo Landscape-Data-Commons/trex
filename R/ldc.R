@@ -446,7 +446,9 @@ fetch_ldc_spatial <- function(polygons,
     if (return_spatial) {
       output <- dplyr::inner_join(x = dplyr::select(.data = headers_sf,
                                                     PrimaryKey),
-                                  y = output)
+                                  y = output,
+                                  by = "PrimaryKey",
+                                  relationship = "one-to-many")
     }
   }
   
