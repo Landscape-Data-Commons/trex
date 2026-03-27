@@ -4,12 +4,17 @@
 \alias{coerce_ldc}
 \title{A function for coercing data in a data frame into an expected format.}
 \usage{
-coerce_ldc(data, data_type, verbose = FALSE)
+coerce_ldc(
+  data,
+  data_type,
+  base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
+  verbose = FALSE
+)
 }
 \arguments{
 \item{data}{Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.}
 
-\item{data_type}{Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.}
+\item{data_type}{Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. To see all valid values, use \code{ldc_table_names()}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
@@ -17,5 +22,9 @@ coerce_ldc(data, data_type, verbose = FALSE)
 The original data frame, \code{data}, with variables coerced as possible and necessary.
 }
 \description{
-Sometimes the data retrieved from the Landscape Data Commons is all character strings even though some variables should at least be numeric. This will coerce the variables into the correct format either using the metadata schema available through the Landscape Data Commons API or by simply attempting to coerce everything to numeric.
+Sometimes the data retrieved from the Landscape Data Commons is
+all character strings even though some variables should at least be numeric.
+This will coerce the variables into the correct format either using the
+metadata schema available through the Landscape Data Commons API or by simply
+attempting to coerce everything to numeric.
 }

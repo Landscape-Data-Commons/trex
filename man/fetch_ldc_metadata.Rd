@@ -4,12 +4,22 @@
 \alias{fetch_ldc_metadata}
 \title{Fetching data from the Landscape Data Commons via API query}
 \usage{
-fetch_ldc_metadata(data_type, timeout = 300, verbose = FALSE)
+fetch_ldc_metadata(
+  data_type,
+  timeout = 300,
+  delay = 500,
+  base_url = "https://api.landscapedatacommons.org/api/v1",
+  verbose = FALSE
+)
 }
 \arguments{
-\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'speciesinventory'}, \code{'plotchar'},\code{'aero'}, \code{'rhem'}, and \code{'schema'}.}
+\item{data_type}{Character string. The type of data to query. To see all valid values, use \code{ldc_table_names()}.}
 
 \item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
+
+\item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can cause issues, so adjust this as needed. Defaults to \code{500}.}
+
+\item{base_url}{Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
@@ -17,7 +27,5 @@ fetch_ldc_metadata(data_type, timeout = 300, verbose = FALSE)
 A data frame of metadata for the requested table. The data frame will contain all variables returned from the server plus an additional character variable called \code{"data_class_r"} which contains the R equivalent to the class of the variable called \code{"data_type"}.
 }
 \description{
-A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
-
-There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
+A wrapper for (\code{\link[=fetch_ldc]{fetch_ldc()}}) which will return metadata for the specified table.
 }
