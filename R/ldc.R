@@ -856,24 +856,43 @@ fetch_ldc_metadata <- function(data_type,
 #' attempting to coerce everything to numeric.
 #' @param data Data frame. The data to be coerced. This is often the direct output from \code{fetch_ldc()}.
 #' @param data_type Character string. If this is a character string recognized by \code{fetch_ldc()} and \code{fetch_ldc_metadata()} then the schema will be retrieved from the LDC and used to coerce values. If this is \code{NULL} then any variable that can be coerced into numeric without producing NA values will be coerced. To see all valid values, use \code{ldc_table_names()}.
+#' @param check_api Logical. If \code{FALSE} the schema available as \code{trex::ldc_schema} will be used. If \code{TRUE} the API will be queried for the current schema. Defaults to \code{FALSE}.
+#' @param base_url Character string. The URL for the API endpoint to use if \code{check_api} is \code{TRUE}. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns The original data frame, \code{data}, with variables coerced as possible and necessary.
 #' @export
 coerce_ldc <- function(data,
                        data_type,
+                       check_api = FALSE,
                        base_url = "https://api.landscapedatacommons.org/api/v1",
                        verbose = FALSE) {
+  data_type <- ldc_table_names(alias = data_type)
+  
   if (!is.null(data_type)) {
-    if (verbose) {
-      message("Requesting schema from the LDC.")
+    if (check_api) {
+      if (verbose) {
+        message("Requesting schema from the LDC.")
+      }
+      
+      var_lut <- fetch_ldc_metadata(data_type = data_type,
+                                    base_url = base_url,
+                                    verbose = verbose) |>
+        dplyr::select(.data = _,
+                      tidyselect::all_of(x = c("field",
+                                               "data_class_r")))
+    } else {
+      if (verbose) {
+        message("Using archived schema from package.")
+      }
+      
+      var_lut <- trex::ldc_schema |>
+        dplyr::filter(.data = _,
+                      table_name == data_type) |>
+        dplyr::select(.data = _,
+                      tidyselect::all_of(x = c("field",
+                                               "data_class_r")))
     }
     
-    var_lut <- fetch_ldc_metadata(data_type = data_type,
-                                  base_url = base_url,
-                                  verbose = verbose) |>
-      dplyr::select(.data = _,
-                    tidyselect::all_of(x = c("field",
-                                             "data_class_r")))
     
     if (verbose) {
       message("Coercing variables as needed.")
@@ -1427,7 +1446,7 @@ ldc_table_names <- function(alias = NULL){
                                     FUN = function(X, alias){
                                       # Keep only the alphabetic characters
                                       alias <- stringr::str_remove_all(string = alias,
-                                                                pattern = "[^[:alpha:]]") |>
+                                                                       pattern = "[^[:alpha:]]") |>
                                         tolower()
                                       alias %in% X
                                     })]
