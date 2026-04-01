@@ -519,7 +519,7 @@ fetch_ldc <- function(data_type,
   querying_end_time <- Sys.time()
   
   total_time <- querying_end_time - querying_start_time
-  time_units <- "seconds"
+  time_unit <- "seconds"
   if (total_time > 60) {
     total_time <- total_time / 60
     time_unit <- "minutes"
@@ -532,7 +532,7 @@ fetch_ldc <- function(data_type,
   if (verbose) {
     message(paste0("The total time spent retrieving data from the server was: ",
                    round(total_time,
-                         digits = 2), " ", time_units))
+                         digits = 2), " ", time_unit))
   }
   
   # Combine all the results of the queries
@@ -540,7 +540,7 @@ fetch_ldc <- function(data_type,
   
   # If there aren't data, let the user know
   if (length(data) < 1) {
-    warning("No data retrieved. Confirm that your query parameters are qqorrect and that you've used a valid API key (if the data are not publicly accessible).")
+    warning("No data retrieved. Confirm that your query parameters are correct and that you've used a valid API key or token (if the data are not publicly accessible).")
     return(NULL)
   }
   
