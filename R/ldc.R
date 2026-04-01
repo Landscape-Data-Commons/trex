@@ -386,35 +386,6 @@ fetch_ldc <- function(data_type,
         return(NULL)
       }
     }
-    
-    # primarykeys <- lapply(X = names(ancillary_query_parameters),
-    #                       ancillary_query_parameters = ancillary_query_parameters,
-    #                       token = token,
-    #                       username = username,
-    #                       keyring_name = keyring_name,
-    #                       verbose = verbose,
-    #                       base_url = base_url,
-    #                       timeout = timeout,
-    #                       api_key_name = api_key_name,
-    #                       FUN = function(X, ancillary_query_parameters, token, username, keyring_name, verbose, base_url, timeout, api_key_name){
-    #                         
-    #                       }) |>
-    #   # Only keep the PrimaryKey values in common between these all!
-    #   purrr::reduce(.x = _,
-    #                 .f = intersect)
-    
-    # If we turned up any PrimaryKeys in common across all the ancillary queries
-    # we'll add them to the main query.
-    # if (length(primarykeys) > 0) {
-    #   if (verbose) {
-    #     message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
-    #   }
-    #   main_query[["PrimaryKey"]][["="]] <- c(main_query[["PrimaryKey"]][["="]],
-    #                                          primarykeys)
-    # } else {
-    #   warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
-    #   return(NULL)
-    # }
   }
   
   if (length(primarykeys) > 0) {
@@ -422,7 +393,7 @@ fetch_ldc <- function(data_type,
       message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
     }
     main_query_parameters[["PrimaryKey"]][["="]] <- c(main_query_parameters[["PrimaryKey"]][["="]],
-                                           primarykeys) |>
+                                                      primarykeys) |>
       unique()
   } else {
     warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
