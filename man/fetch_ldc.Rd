@@ -16,6 +16,7 @@ fetch_ldc(
   delay = 2000,
   coerce = TRUE,
   base_url = "https://api.landscapedatacommons.org/api/v1/",
+  multi_table_queries = FALSE,
   verbose = FALSE,
   keys = deprecated(),
   key_type = deprecated(),

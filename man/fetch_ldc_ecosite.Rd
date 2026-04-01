@@ -9,6 +9,7 @@ fetch_ldc_ecosite(
   ecosite_ids,
   username = NULL,
   api_key_name = NULL,
+  token = FALSE,
   timeout = 300,
   take = NULL,
   delay = 500,

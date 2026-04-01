@@ -14,7 +14,7 @@ setup_keyring(
 \arguments{
 \item{username}{Character string. The username associated with the LDC API account. This is almost certainly an email address.}
 
-\item{keyring_password}{OPTIONAL (and discouraged) character string. The password to use to encrypt the keyring and which will be used to access and API keys stored in the keyring in the future. It is very strongly recommended that you never save a plaintext password in your code. If this is \code{NULL} and \code{interactive} is \code{TRUE} then you will be prompted to type a password when the function is run. Defaults to \code{NULL}.}
+\item{keyring_password}{OPTIONAL character string. The password to use to encrypt the keyring and which will be used to access and API keys stored in the keyring in the future. It is very strongly recommended that you never save a plaintext password in your code. If this is \code{NULL} and \code{interactive} is \code{TRUE} then you will be prompted to type a password when the function is run. Defaults to \code{NULL}.}
 
 \item{interactive}{Logical. If \code{TRUE} and either \code{username} or \code{keyring_password} is \code{NULL} then interactive prompts will ask you for the missing values. Defaults to \code{TRUE}.}
 

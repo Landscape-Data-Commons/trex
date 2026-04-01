@@ -2,19 +2,19 @@
 % Please edit documentation in R/credentials.R
 \name{store_password}
 \alias{store_password}
-\title{Securely store an API key for future use}
+\title{Securely store an API password for future use}
 \usage{
 store_password(username, api_name = "ldc", overwrite = FALSE, verbose = FALSE)
 }
 \arguments{
 \item{username}{Character string. The username associated with the API key being stored, typically an email address.}
 
-\item{overwrite}{Logical. If \code{TRUE} then an existing key stored with the name provided as \code{api_key_name} will be overwritten. Defaults to \code{FALSE}.}
+\item{api_name}{Character string. The name of the API associated with the password. Defaults to \code{"ldc"}.}
+
+\item{overwrite}{Logical. If \code{TRUE} then an existing password stored for the provided username for the API will be overwritten. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
-
-\item{api_key_name}{Character string. The name to store the API key under in the keyring. Defaults to \code{"default"}.}
 }
 \description{
 Store an API key in the user's encrypted keyring. The user must provide the
