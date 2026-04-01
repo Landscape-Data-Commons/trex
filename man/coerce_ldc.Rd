@@ -7,7 +7,7 @@
 coerce_ldc(
   data,
   data_type,
-  base_url = "https://api.landscapedatacommons.org/api/v1/tblSchemaplan?table_name=",
+  base_url = "https://api.landscapedatacommons.org/api/v1",
   verbose = FALSE
 )
 }

@@ -9,6 +9,8 @@ fetch_ldc(
   query_parameters = list(),
   username = NULL,
   api_key_name = NULL,
+  token = FALSE,
+  keyring_name = NULL,
   timeout = 300,
   take = 10000,
   delay = 2000,

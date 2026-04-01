@@ -8,6 +8,7 @@ query_ldc(
   data_type,
   body = NULL,
   api_key = NULL,
+  token = NULL,
   timeout = 300,
   base_url = "https://api.landscapedatacommons.org/api/v1/",
   verbose = FALSE
