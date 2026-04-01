@@ -1,7 +1,8 @@
 #' Create a standardized name for a trex keyring based on an API username.
 #' @description The format is the provided username stripped of any domain plus "_trex_keyring".
 #' @param username Character string. The username associated with the LDC API account. This is almost certainly an email address.
-#' @returns A character string matching the standard pattern for a trex keyring name. 
+#' @returns A character string matching the standard pattern for a trex keyring name.
+#' @export
 generate_keyring_name <- function(username) {
   keyring_name <- stringr::str_remove(string = username,
                                       pattern = "@.+$") |>
@@ -18,6 +19,7 @@ generate_keyring_name <- function(username) {
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #' @returns A character string matching the standard pattern for a trex keyring name if that keyring exists OR \code{NULL} in cases where keyring does not exist or the system does not support multiple keyrings.
+#' @export
 get_trex_keyring_name <- function(username,
                                   verbose = FALSE) {
   if (!keyring::has_keyring_support()) {
@@ -48,10 +50,11 @@ get_trex_keyring_name <- function(username,
 #' @description
 #' Attempt to create a keyring for the user to store their API keys in. The keyring name is created using \code{generate_keyring_name()}.
 #' @param username Character string. The username associated with the LDC API account. This is almost certainly an email address.
-#' @param keyring_password OPTIONAL (and discouraged) character string. The password to use to encrypt the keyring and which will be used to access and API keys stored in the keyring in the future. It is very strongly recommended that you never save a plaintext password in your code. If this is \code{NULL} and \code{interactive} is \code{TRUE} then you will be prompted to type a password when the function is run. Defaults to \code{NULL}.
+#' @param keyring_password OPTIONAL character string. The password to use to encrypt the keyring and which will be used to access and API keys stored in the keyring in the future. It is very strongly recommended that you never save a plaintext password in your code. If this is \code{NULL} and \code{interactive} is \code{TRUE} then you will be prompted to type a password when the function is run. Defaults to \code{NULL}.
 #' @param interactive Logical. If \code{TRUE} and either \code{username} or \code{keyring_password} is \code{NULL} then interactive prompts will ask you for the missing values. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
+#' @export
 setup_keyring <- function(username = NULL,
                           keyring_password = NULL,
                           interactive = TRUE,
@@ -112,6 +115,7 @@ setup_keyring <- function(username = NULL,
 #' @param overwrite Logical. If \code{TRUE} then an existing key stored with the name provided as \code{api_key_name} will be overwritten. Defaults to \code{FALSE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
+#' @export
 store_api_key <- function(username,
                           api_key_name = "default",
                           overwrite = FALSE,
@@ -170,6 +174,7 @@ store_api_key <- function(username,
 #' @param accept_failure Logical. If \code{TRUE} then the function will return \code{NULL} if a key can't be found. Otherwise an error message will be produced. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
+#' @export
 get_stored_key <- function(username,
                            api_key_name = NULL,
                            keyring_name = NULL,
@@ -220,7 +225,7 @@ get_stored_key <- function(username,
   output
 }
 
-#' Securely store an API key for future use
+#' Securely store an API password for future use
 #' @description
 #' Store an API key in the user's encrypted keyring. The user must provide the
 #' key when interactively prompted. Other trex functions for requesting data from
@@ -228,10 +233,11 @@ get_stored_key <- function(username,
 #' stored in this way.
 #' 
 #' @param username Character string. The username associated with the API key being stored, typically an email address.
-#' @param api_key_name Character string. The name to store the API key under in the keyring. Defaults to \code{"default"}.
-#' @param overwrite Logical. If \code{TRUE} then an existing key stored with the name provided as \code{api_key_name} will be overwritten. Defaults to \code{FALSE}.
+#' @param api_name Character string. The name of the API associated with the password. Defaults to \code{"ldc"}.
+#' @param overwrite Logical. If \code{TRUE} then an existing password stored for the provided username for the API will be overwritten. Defaults to \code{FALSE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
+#' @export
 store_password <- function(username,
                            api_name = "ldc",
                            overwrite = FALSE,
@@ -295,6 +301,7 @@ store_password <- function(username,
 #' @param accept_failure Logical. If \code{TRUE} then the function will return \code{NULL} if a key can't be found. Otherwise an error message will be produced. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
+#' @export
 get_stored_password <- function(username,
                                 api_name = "ldc",
                                 keyring_name = NULL,
@@ -344,6 +351,21 @@ get_stored_password <- function(username,
   output
 }
 
+
+#' Securely store an API token for future use
+#' @description
+#' Store an API token in the user's encrypted keyring. The token is retrieved
+#' at the time of the function call and cannot be provided as an argument. An
+#' existing stored token will only be overwritten if it has expired or the
+#' argument \code{overwrite} is \code{TRUE}.
+#' 
+#' @param username Character string. The username associated with the API account being used to retrive and store the token. Typically an email address.
+#' @param api_name Character string. The name of the API associated with the password. Defaults to \code{"ldc"}.
+#' @param keyring_name Optional character string. The name of the keyring that the API token will be stored in. If this is \code{NULL} then the keyring matching \code{generate_keyring_name(username)} will be used. Defaults to \code{NULL}.
+#' @param overwrite Logical. If \code{TRUE} then an existing token stored for the provided username for the API will be overwritten. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 store_api_token <- function(username,
                             api_name = "ldc",
                             keyring_name = NULL,
@@ -424,6 +446,17 @@ store_api_token <- function(username,
   }
 }
 
+#' Retrieve a securely-stored API token
+#' @description
+#' Retrieve a previously-stored API token from the user's encrypted keyring.
+#' 
+#' @param username Character string. The username associated with the API account and token being retrieved, typically an email address.
+#' @param api_name Character string. The abbreviated \(and case-insensitive\) name of the API, e.g. \code{"LDC"}, the token is associated with. Defaults to \code{"ldc"}.
+#' @param keyring_name Optional character string. The name of the keyring that the password was stored in. If this is \code{NULL} then the keyring matching \code{generate_keyring_name(username)} will be used. Defaults to \code{NULL}.
+#' @param accept_failure Logical. If \code{TRUE} then the function will return \code{NULL} if a token can't be found. Otherwise an error message will be produced. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 get_stored_token <- function(username,
                              api_name = "ldc",
                              keyring_name = NULL,
@@ -602,22 +635,23 @@ get_ldc_token <- function(username,
 }
 
 
+#' Check the validity of a securely-stored API token
+#' @description
+#' Attempt to retrieve a previously-stored API token from the user's encrypted keyring.
+#' in order to confirm that it exists and has not yet expired.
+#' 
+#' @param username Character string. The username associated with the API account and token being retrieved, typically an email address.
+#' @param api_name Character string. The abbreviated \(and case-insensitive\) name of the API, e.g. \code{"LDC"}, the token is associated with. Defaults to \code{"ldc"}.
+#' @param keyring_name Optional character string. The name of the keyring that the password was stored in. If this is \code{NULL} then the keyring matching \code{generate_keyring_name(username)} will be used. Defaults to \code{NULL}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 check_token <- function(username,
                         api_name = "ldc",
                         keyring_name = NULL,
                         verbose = FALSE) {
-  recognized_api_names <- c("ldc",
-                            "rap",
-                            "edit")
-  api_name <- intersect(x = tolower(api_name),
-                        y = recognized_api_names)
-  
-  if (length(api_name) != 1) {
-    stop(paste0("api_name must be one of the following (case-insensitive): ",
-                paste(recognized_api_names,
-                      collapse = "', '"),
-                "'."))
-  }
+  api_name <- check_api_name(api_name,
+                             recognized_api_names = c("ldc"))
   
   service_name <- paste0(api_name,
                          "_token")
@@ -708,82 +742,3 @@ check_api_name <- function(api_name,
   
   api_name
 }
-
-# check_token <- function (token, username = NULL, password = NULL, verbose = FALSE) 
-# {
-#   if (!is.null(token)) {
-#     if (verbose) {
-#       message("Checking provided token for validity.")
-#     }
-#     if (class(token) == "list") {
-#       if (!("IdToken" %in% names(token))) {
-#         stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-#       }
-#       else if (class(token[["IdToken"]]) != "character") {
-#         stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-#       }
-#       if (!("expiration_time" %in% names(token))) {
-#         if (verbose) {
-#           message("The token doesn't have an associated expiration time and will be assumed to be valid for the next 30 minutes which may cause issues. Consider using get_ldc_token() to get a token with an accurate expiration time.")
-#         }
-#         token[["expiration_time"]] <- Sys.time() + 1800
-#       }
-#       if (verbose) {
-#         message("Provided token appears to be valid.")
-#       }
-#     }
-#     else if (class(token) == "character") {
-#       if (length(token) != 1) {
-#         stop("A valid bearer ID token must be a single character string or a single character string in a list stored at an index named 'IdToken'.")
-#       }
-#       if (verbose) {
-#         message("The token doesn't have an associated expiration time and will be assumed to be valid for the next 30 minutes which may cause issues. Consider using get_ldc_token() to get a token with an accurate expiration time.")
-#       }
-#       token <- list(IdToken = token, expiration_time = Sys.time() + 
-#                       1800)
-#     }
-#   }
-#   else {
-#     if (!identical(is.null(username), is.null(password))) {
-#       if (is.null(username)) {
-#         warning("No token or username provided. Returning NULL instead of getting a token.")
-#       }
-#       if (is.null(password)) {
-#         warning("No token or password provided. Returning NULL instead of getting a token.")
-#       }
-#     }
-#     else if (!is.null(username) & !is.null(password)) {
-#       if (class(username) != "character" | length(username) > 
-#           1) {
-#         stop("Provided username must be a single character string.")
-#       }
-#       if (class(password) != "character" | length(password) > 
-#           1) {
-#         stop("Provided username must be a single character string.")
-#       }
-#       if (verbose) {
-#         message("Getting a token using the provided username and password.")
-#       }
-#       token <- get_ldc_token(username = username, password = password)
-#     }
-#     else if (verbose) {
-#       message("No credentials provided, returning NULL instead of getting a token.")
-#     }
-#   }
-#   if (!is.null(token)) {
-#     if (Sys.time() > token[["expiration_time"]]) {
-#       if (verbose) {
-#         message("Current API bearer authorization token has expired. Attempting to request a new one.")
-#       }
-#       if (!is.null(username) & !is.null(password)) {
-#         token <- get_ldc_token(username = username, 
-#                                password = password)
-#       }
-#       else {
-#         warning("The API bearer authorization token has expired. Because username and password have not been provided, only data which do not require a token will be retrieved.")
-#         token <- NULL
-#       }
-#     }
-#   }
-#   token
-# }
