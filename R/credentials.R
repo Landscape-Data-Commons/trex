@@ -165,7 +165,7 @@ store_api_key <- function(username,
 #' stored in this way.
 #' 
 #' @param username Character string. The username associated with the API key being stored, typically an email address.
-#' @param api_key_name Optional character string. The name that the API key was stored under in the keyring. Defaults to \code{NULL} which will attempt to retrieve a key called \code{"efault"}.
+#' @param api_key_name Optional character string. The name that the API key was stored under in the keyring. Defaults to \code{NULL} which will attempt to retrieve a key called \code{"default"}.
 #' @param keyring_name Optional character string. The name of the keyring that the API key was stored in. If this is \code{NULL} then the keyring matching \code{generate_keyring_name(username)} will be used. Defaults to \code{NULL}.
 #' @param accept_failure Logical. If \code{TRUE} then the function will return \code{NULL} if a key can't be found. Otherwise an error message will be produced. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
