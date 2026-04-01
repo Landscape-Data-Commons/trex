@@ -40,16 +40,18 @@ fetch_ldc <- function(data_type,
                       query_parameters = list(),
                       username = NULL,
                       api_key_name = NULL,
+                      token = FALSE,
+                      keyring_name = NULL,
                       timeout = 300,
                       take = 10000,
                       delay = 2000,
                       coerce = TRUE,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
+                      multi_table_queries = FALSE,
                       verbose = FALSE,
                       keys = deprecated(),
                       key_type = deprecated(),
                       password = deprecated(),
-                      token = deprecated(),
                       key_chunk_size = deprecated(),
                       exact_match = deprecated()) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
@@ -67,13 +69,13 @@ fetch_ldc <- function(data_type,
   if (lifecycle::is_present(password)) {
     lifecycle::deprecate_warn(when = "2.0.0",
                               what = "fetch_ldc(password)",
-                              details = "The use of a plaintext password argument is no longer supported due to changes in LDC API credential handling. Please use the api_key_name in conjunction with setup_keyring() and store_api_key() instead.")
+                              details = "The use of a plaintext password argument is no longer supported due to changes in LDC API credential handling. Please use the argument api_key_name or token in conjunction with setup_keyring() and store_api_key() instead.")
   }
-  if (lifecycle::is_present(token)) {
-    lifecycle::deprecate_warn(when = "2.0.0",
-                              what = "fetch_ldc(token)",
-                              details = "Changes in LDC API credential handling mean that tokens are no longer supported. Please use the api_key_name argument in conjunction with setup_keyring() and store_api_key() instead.")
-  }
+  # if (lifecycle::is_present(token)) {
+  #   lifecycle::deprecate_warn(when = "2.0.0",
+  #                             what = "fetch_ldc(token)",
+  #                             details = "Changes in LDC API credential handling mean that tokens are no longer supported. Please use the api_key_name argument in conjunction with setup_keyring() and store_api_key() instead.")
+  # }
   if (lifecycle::is_present(exact_match)) {
     lifecycle::deprecate_warn(when = "2.0.0",
                               what = "fetch_ldc(exact_match)",
@@ -88,6 +90,24 @@ fetch_ldc <- function(data_type,
   if (is.null(username) & !is.null(api_key_name)) {
     warning("Although an api_key_name has been specified, no username has been provided and so no stored API key will be retrieved.")
     api_key_name <- NULL
+  }
+  
+  if (token) {
+    if (!is.null(api_key_name)) {
+      if (verbose) {
+        message("Because api_key_name was provided, a token will not be used.")
+      }
+      token <- FALSE
+    } else if (is.null(username)) {
+      #if (verbose) {
+        warning("Because no username was provided, a token will not be used despite the argument token being set to TRUE.")
+      # }
+      token <- FALSE
+    } else {
+      if (verbose) {
+        message("A stored token will be used if it exists.")
+      }
+    }
   }
   
   # Get the API-recognized name for the submitted alias
@@ -117,22 +137,81 @@ fetch_ldc <- function(data_type,
   # This uses the metadata to confirm that the query won't return an error due
   # to referencing a variable that doesn't exist in the requested table.
   
-  available_variables <- fetch_ldc_metadata(data_type = data_type) |>
+  
+  # available_variables <- fetch_ldc_metadata(data_type = data_type) |>
+  #   dplyr::pull(.data = _,
+  #               var = "field")
+  
+  #### QUERY HANDLING ----------------------------------------------------------
+  # This will (potentially) produce multiple parameter lists.
+  # The "main" query will be the one with parameters only for the requested
+  # data_type and the others will be used to get a single set of PrimaryKeys
+  # from however many other tables are needed that will get appended to the main
+  # query to represent those.
+  # ldc_schema is data set included in this package.
+  required_tables_lut <- dplyr::filter(.data = ldc_schema,
+                                       field %in% names(query_parameters)) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c("table_name",
+                                       "field"))) |>
+    dplyr::arrange(.data = _,
+                   field)
+  
+  main_query_parameters <- dplyr::filter(.data = required_tables_lut,
+                                         table_name == data_type) |>
     dplyr::pull(.data = _,
-                var = "field")
+                var = "field") |>
+    query_parameters[.x = _]
   
-  query_variables <- names(query_parameters)
+  # This makes sure that we're preferentially querying the actual requested
+  # table in situations where variables appear in multiple tables, e.g.
+  # LineLengthAmount
+  # if (limit_queries) {
+  #   if (verbose) {
+  #     message("Because limit_queries is TRUE, a query parameter involving a variable that occurs in multiple tables will be applied only to the requested data type or (in the case that it does not occur in that table) to only the first table listed in trex::ldc_schema that contains that variable.")
+  #   }
+  required_ancillary_tables_lut <- dplyr::filter(.data = required_tables_lut,
+                                                 !(field %in% names(main_query_parameters))) |>
+    dplyr::summarize(.data = _,
+                     .by = field,
+                     table_name = dplyr::first(table_name))
+  # } else {
+  #   
+  #   warning("Because limit_queries is FALSE, a query parameter involving a variable that occurs in multiple tables will be applied EVERY table it occurs in according to trex::ldc_schema. This is risky and very likely to return no data at all because very few PrimaryKeys occur in every table.")
+  #   
+  #   required_ancillary_tables_lut <- dplyr::filter(.data = required_tables_lut,
+  #                                                  table_name != data_type)
+  # }
   
-  unavailable_variables <- setdiff(x = query_variables,
-                                   y = available_variables)
   
-  if (length(unavailable_variables) > 0) {
-    stop(paste0("The following query variables does not appear in ", data_type,
-                ": ", paste(unavailable_variables,
-                            collapse = ", "), "\n\nPossible valid key_type values for ", data_type, " are: ",
-                paste(available_variables,
-                      collapse = ", ")))
-  }
+  ##### Ancillary queries ------------------------------------------------------
+  ancillary_query_parameters <- setNames(object = setdiff(x = unique(required_ancillary_tables_lut$table_name),
+                                                          y = data_type),
+                                         nm = setdiff(x = unique(required_ancillary_tables_lut$table_name),
+                                                      y = data_type)) |>
+    lapply(X = _,
+           required_ancillary_tables_lut = required_ancillary_tables_lut,
+           query_parameters = query_parameters,
+           FUN = function(X, required_ancillary_tables_lut, query_parameters){
+             dplyr::filter(.data = required_ancillary_tables_lut,
+                           table_name == X) |>
+               dplyr::pull(.data = _,
+                           field) |>
+               query_parameters[.x = _]
+           })
+  
+  
+  
+  # unavailable_variables <- setdiff(x = query_variables,
+  #                                  y = available_variables)
+  # 
+  # if (length(unavailable_variables) > 0) {
+  #   stop(paste0("The following query variables does not appear in ", data_type,
+  #               ": ", paste(unavailable_variables,
+  #                           collapse = ", "), "\n\nPossible valid key_type values for ", data_type, " are: ",
+  #               paste(available_variables,
+  #                     collapse = ", ")))
+  # }
   
   if (!is.null(take)) {
     if (!is.numeric(take) | length(take) > 1) {
@@ -150,7 +229,25 @@ fetch_ldc <- function(data_type,
   
   # Add take to the parameters
   if (!is.null(take)) {
-    query_parameters[["take"]] <- list("=" = take)
+    main_query_parameters[["take"]] <- list("=" = take)
+    
+    if (length(ancillary_query_parameters) > 0) {
+      if (!multi_table_queries) {
+        stop(paste0("Some query parameters (", paste0(sapply(X = ancillary_query_parameters,
+                                                             FUN = names) |>
+                                                        unique() |>
+                                                        setdiff(x = _,
+                                                                y = "take"),
+                                                      collapse = ", "), ") would require querying additional tables (", paste(names(ancillary_query_parameters),
+                                                                                                                              collapse = ", "), "). To use those ancillary queries, set multi_table_queries to TRUE."))
+      }
+      ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
+                                           take = take,
+                                           FUN = function(X, take){
+                                             X[["take"]] <- list("=" = take)
+                                             X
+                                           })
+    }
   }
   
   if (delay < 0) {
@@ -161,8 +258,174 @@ fetch_ldc <- function(data_type,
     delay <- delay * 10^6
   }
   
-  if (verbose & is.null(api_key_name)) {
+  if (verbose & is.null(api_key_name) & !token) {
     message("Retrieving only data which do not require credentials.")
+  }
+  
+  # Just to keep track of the time elapsed.
+  querying_start_time <- Sys.time()
+  
+  # First up, if there are ancillary queries to make to other tables, we'll do
+  # that because we'll want to add the PrimaryKeys to the main query.
+  if (length(ancillary_query_parameters) > 0) {
+    if (verbose) {
+      message(paste0("The query parameters span multiple data tables in the LDC database. Getting PrimaryKey values in common across the following tables associated with relevant parameters: ",
+                     paste(names(ancillary_query_parameters),
+                           collapse = ", ")))
+    }
+    # For each ancillary data table, we'll run the queries with the relevant
+    # parameters and keep only the unique PrimaryKey values from those.
+    primarykeys <- c()
+    
+    for (current_ancillary_table in names(ancillary_query_parameters)) {
+      if (verbose) {
+        message(paste0("Sending ancillary query regarding ", current_ancillary_table, "."))
+      }
+      data_list <- list()
+      keep_querying <- TRUE
+      while (keep_querying) {
+        if (verbose) {
+          message("Submitting ancillary query to the API.")
+        }
+        if (token) {
+          current_token_status <- check_token(username,
+                                              api_name = "ldc",
+                                              keyring_name = keyring_name,
+                                              verbose = verbose)
+          
+          if (current_token_status != "valid") {
+            if (verbose) {
+              message("Unable to find a valid stored LDC API token. Requesting and storing a new token.")
+            }
+            store_api_token(username = username,
+                            api_name = "ldc",
+                            keyring_name = keyring_name,
+                            overwrite = TRUE,
+                            verbose = verbose)
+          }
+          current_data <- query_ldc(data_type = current_ancillary_table,
+                                    body = ancillary_query_parameters[[current_ancillary_table]],
+                                    token = get_stored_token(username = username,
+                                                             api_name = "ldc",
+                                                             keyring_name = keyring_name,
+                                                             verbose = verbose),
+                                    base_url = base_url,
+                                    timeout = timeout,
+                                    verbose = verbose)
+        } else {
+          current_data <- query_ldc(data_type = current_ancillary_table,
+                                    body = ancillary_query_parameters[[current_ancillary_table]],
+                                    api_key = get_stored_key(username = username,
+                                                             api_key_name = api_key_name,
+                                                             keyring_name = keyring_name),
+                                    base_url = base_url,
+                                    timeout = timeout,
+                                    verbose = verbose)
+        }
+        
+        
+        # Bind that onto the end of the list
+        # The data are wrapped in list() so that it gets added
+        # as a data frame instead of as a vector for each variable
+        data_list <- c(data_list,
+                       list(current_data))
+        
+        if (nrow(current_data) < take) {
+          if (verbose) {
+            message("All qualifying data available with the provided credentials have been returned.")
+          }
+          keep_querying <- FALSE
+        } else {
+          if (verbose) {
+            message(paste0("The previous query returned exactly the maximum number of records with the current value for take (", take, "). Checking to see if there are additional qualifying records."))
+          }
+          query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
+          # Should be unnecessary, but just to be safe!
+          keep_querying <- TRUE
+          
+          # And to avoid flooding the API server with requests, we'll put in a delay
+          # here.
+          # This gets the current time then spins its wheels, checking repeatedly to
+          # see if enough time has elapsed, at which point it moves on.
+          start_time <- microbenchmark::get_nanotime()
+          repeat {
+            current_time <- microbenchmark::get_nanotime()
+            elapsed_time <- current_time - start_time
+            if (elapsed_time > delay) {
+              break
+            }
+          }
+        }
+      }
+      primarykeys <- dplyr::bind_rows(data_list) |>
+        dplyr::pull(.data = _,
+                    PrimaryKey) |>
+        unique() |>
+        c(.x = _,
+          primarykeys) |>
+        unique()
+      
+      if (length(primarykeys) > 0) {
+        if (verbose) {
+          message(paste0("Qualifying PrimaryKey values added to subsequent queries."))
+        }
+        
+        ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
+                                             primarykeys = primarykeys,
+                                             FUN = function(X, primarykeys){
+                                               X[["PrimaryKey"]][["="]] <- c(X[["PrimaryKey"]][["="]],
+                                                                             primarykeys) |>
+                                                 unique()
+                                               X
+                                             })
+        
+        
+      } else {
+        warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
+        return(NULL)
+      }
+    }
+    
+    # primarykeys <- lapply(X = names(ancillary_query_parameters),
+    #                       ancillary_query_parameters = ancillary_query_parameters,
+    #                       token = token,
+    #                       username = username,
+    #                       keyring_name = keyring_name,
+    #                       verbose = verbose,
+    #                       base_url = base_url,
+    #                       timeout = timeout,
+    #                       api_key_name = api_key_name,
+    #                       FUN = function(X, ancillary_query_parameters, token, username, keyring_name, verbose, base_url, timeout, api_key_name){
+    #                         
+    #                       }) |>
+    #   # Only keep the PrimaryKey values in common between these all!
+    #   purrr::reduce(.x = _,
+    #                 .f = intersect)
+    
+    # If we turned up any PrimaryKeys in common across all the ancillary queries
+    # we'll add them to the main query.
+    # if (length(primarykeys) > 0) {
+    #   if (verbose) {
+    #     message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
+    #   }
+    #   main_query[["PrimaryKey"]][["="]] <- c(main_query[["PrimaryKey"]][["="]],
+    #                                          primarykeys)
+    # } else {
+    #   warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
+    #   return(NULL)
+    # }
+  }
+  
+  if (length(primarykeys) > 0) {
+    if (verbose) {
+      message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
+    }
+    main_query_parameters[["PrimaryKey"]][["="]] <- c(main_query_parameters[["PrimaryKey"]][["="]],
+                                           primarykeys) |>
+      unique()
+  } else {
+    warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
+    return(NULL)
   }
   
   # Use the queries to snag data
@@ -172,7 +435,8 @@ fetch_ldc <- function(data_type,
   # expired each time we use it.
   data_list <- list()
   
-  querying_start_time <- Sys.time()
+  
+  # querying_start_time <- Sys.time()
   
   keep_querying <- TRUE
   data_list <- list()
@@ -180,14 +444,42 @@ fetch_ldc <- function(data_type,
     if (verbose) {
       message("Submitting query to the API.")
     }
+    if (token) {
+      current_token_status <- check_token(username,
+                                          api_name = "ldc",
+                                          keyring_name = keyring_name,
+                                          verbose = verbose)
+      
+      if (current_token_status != "valid") {
+        if (verbose) {
+          message("Unable to find a valid stored LDC API token. Requesting and storing a new token.")
+        }
+        store_api_token(username = username,
+                        api_name = "ldc",
+                        keyring_name = keyring_name,
+                        overwrite = TRUE,
+                        verbose = verbose)
+      }
+      current_data <- query_ldc(data_type = data_type,
+                                body = main_query_parameters,
+                                token = get_stored_token(username = username,
+                                                         api_name = "ldc",
+                                                         keyring_name = keyring_name,
+                                                         verbose = verbose),
+                                base_url = base_url,
+                                timeout = timeout,
+                                verbose = verbose)
+    } else {
+      current_data <- query_ldc(data_type = data_type,
+                                body = main_query_parameters,
+                                api_key = get_stored_key(username = username,
+                                                         api_key_name = api_key_name,
+                                                         keyring_name = keyring_name),
+                                base_url = base_url,
+                                timeout = timeout,
+                                verbose = verbose)
+    }
     
-    current_data <- query_ldc(data_type = data_type,
-                              body = query_parameters,
-                              api_key = get_stored_key(username = username,
-                                                       api_key_name = api_key_name),
-                              base_url = base_url,
-                              timeout = timeout,
-                              verbose = verbose)
     
     # Bind that onto the end of the list
     # The data are wrapped in list() so that it gets added
@@ -204,7 +496,7 @@ fetch_ldc <- function(data_type,
       if (verbose) {
         message(paste0("The previous query returned exactly the maximum number of records with the current value for take (", take, "). Checking to see if there are additional qualifying records."))
       }
-      query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
+      main_query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
       # Should be unnecessary, but just to be safe!
       keep_querying <- TRUE
       
@@ -427,6 +719,7 @@ fetch_ldc_ecosite <- function(data_type,
                               ecosite_ids,
                               username = NULL,
                               api_key_name = NULL,
+                              token = FALSE,
                               timeout = 300,
                               take = NULL,
                               delay = 500,
@@ -441,42 +734,18 @@ fetch_ldc_ecosite <- function(data_type,
                               with = "fetch_ldc_ecosite(ecosite_ids)")
   }
   
-  # First order of business: grab the header info for sampling locations that
-  # match the ecosite(s) requested
-  if (verbose) {
-    message("Retrieving header information")
-  }
-  current_headers <- fetch_ldc(query_parameters = list("EcologicalSiteID" = list("=" = ecosite_ids)),
-                               data_type = "header",
-                               username = username,
-                               api_key_name = api_key_name,
-                               timeout = timeout,
-                               take = take,
-                               delay = delay,
-                               base_url = base_url,
-                               verbose = verbose)
-  
-  # Okay, so what if we get no data?
-  # fetch_ldc() should already have warned the user, so we can just return NULL
-  # Or if they wanted the headers, we just serve those out
-  if (is.null(current_headers) | data_type == "header") {
-    return(current_headers)
-  }
-  
-  # Gimme those PrimaryKeys
-  current_primarykeys <- unique(current_headers$PrimaryKey)
-  
-  if (verbose) {
-    message("Retrieving requested data with relevant PrimaryKeys.")
-  }
-  # Grab the relevant data with the PrimaryKeys
-  fetch_ldc(query_parameters = list("PrimaryKey" = list("=" = current_primarykeys)),
+  # This is a super-simple wrapper, but all we're doing is letting the user
+  # remain blissfully ignorant while we use fetch_ldc() with multi_table_queries
+  # set to TRUE.
+  fetch_ldc(query_parameters = list("EcologicalSiteID" = list("=" = ecosite_ids)),
             data_type = data_type,
             username = username,
             api_key_name = api_key_name,
+            token = token,
             timeout = timeout,
             take = take,
             delay = delay,
+            multi_table_queries = TRUE,
             base_url = base_url,
             verbose = verbose)
 }
@@ -715,6 +984,7 @@ coerce_ldc <- function(data,
 query_ldc <- function(data_type,
                       body = NULL,
                       api_key = NULL,
+                      token = NULL,
                       timeout = 300,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
                       verbose = FALSE){
@@ -751,9 +1021,9 @@ query_ldc <- function(data_type,
   }
   
   # Full query response using the API key if we've got one.
-  if (is.null(api_key)) {
+  if (is.null(api_key) & is.null(token)) {
     if (verbose) {
-      message("No API key provided. Only publicly accessible data will be returned.")
+      message("No API key or token provided. Only publicly accessible data will be returned.")
     }
     response <- httr::POST(url = paste0(base_url,
                                         data_type),
@@ -767,20 +1037,39 @@ query_ldc <- function(data_type,
                            encode = "json")
     
   } else {
-    if (verbose) {
-      message("Qualifying data available with the permissions associated with the provided API key will be returned.")
+    if (!is.null(api_key)) {
+      if (verbose) {
+        message("Qualifying data available with the permissions associated with the provided API key will be returned.")
+      }
+      response <- httr::POST(url = paste0(base_url,
+                                          data_type),
+                             # These helper functions will build the header because
+                             # httr::POST() takes these unnamed arguments and uses
+                             # them in the header by default.
+                             httr::timeout(timeout),
+                             httr::user_agent(user_agent),
+                             httr::content_type_json(),
+                             httr::add_headers(.headers = c("X-API-Key" = api_key)),
+                             body = body_string,
+                             encode = "json")
+    } else if (!is.null(token)) {
+      if (verbose) {
+        message("Qualifying data available with the permissions associated with the provided API token will be returned.")
+      }
+      response <- httr::POST(url = paste0(base_url,
+                                          data_type),
+                             # These helper functions will build the header because
+                             # httr::POST() takes these unnamed arguments and uses
+                             # them in the header by default.
+                             httr::timeout(timeout),
+                             httr::user_agent(user_agent),
+                             httr::content_type_json(),
+                             httr::add_headers(Authorization = paste("Bearer", 
+                                                                     token[["IdToken"]])),
+                             body = body_string,
+                             encode = "json")
     }
-    response <- httr::POST(url = paste0(base_url,
-                                        data_type),
-                           # These helper functions will build the header because
-                           # httr::POST() takes these unnamed arguments and uses
-                           # them in the header by default.
-                           httr::timeout(timeout),
-                           httr::user_agent(user_agent),
-                           httr::content_type_json(),
-                           httr::add_headers(.headers = c("X-API-Key" = api_key)),
-                           body = body_string,
-                           encode = "json")
+    
   }
   
   # What if there's an error????
