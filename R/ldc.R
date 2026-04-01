@@ -283,12 +283,13 @@ fetch_ldc <- function(data_type,
       }
       data_list <- list()
       keep_querying <- TRUE
+      current_ancillary_query_parameters <- ancillary_query_parameters[[current_ancillary_table]]
       while (keep_querying) {
         if (verbose) {
           message("Submitting ancillary query to the API.")
         }
         if (token) {
-          current_token_status <- check_token(username,
+          current_token_status <- check_token(username = username,
                                               api_name = "ldc",
                                               keyring_name = keyring_name,
                                               verbose = verbose)
@@ -304,7 +305,7 @@ fetch_ldc <- function(data_type,
                             verbose = verbose)
           }
           current_data <- query_ldc(data_type = current_ancillary_table,
-                                    body = ancillary_query_parameters[[current_ancillary_table]],
+                                    body = current_ancillary_query_parameters,
                                     token = get_stored_token(username = username,
                                                              api_name = "ldc",
                                                              keyring_name = keyring_name,
@@ -314,7 +315,7 @@ fetch_ldc <- function(data_type,
                                     verbose = verbose)
         } else {
           current_data <- query_ldc(data_type = current_ancillary_table,
-                                    body = ancillary_query_parameters[[current_ancillary_table]],
+                                    body = current_ancillary_query_parameters,
                                     api_key = get_stored_key(username = username,
                                                              api_key_name = api_key_name,
                                                              keyring_name = keyring_name),
@@ -339,7 +340,7 @@ fetch_ldc <- function(data_type,
           if (verbose) {
             message(paste0("The previous query returned exactly the maximum number of records with the current value for take (", take, "). Checking to see if there are additional qualifying records."))
           }
-          query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
+          current_ancillary_query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
           # Should be unnecessary, but just to be safe!
           keep_querying <- TRUE
           
