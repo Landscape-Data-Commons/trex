@@ -194,13 +194,13 @@ get_stored_key <- function(username,
   }
   
   if (verbose) {
-    message("Getting the API key stored with the name ",
-            keyring_name, "'.")
+    message("Getting the API key stored with the name '",
+            api_key_name, "'.")
   }
   
   output <- keyring::key_get(service = api_key_name,
-                   username = username,
-                   keyring = keyring_name) |>
+                             username = username,
+                             keyring = keyring_name) |>
     tryCatch(expr = _,
              error = function(error_message){
                !stringr::str_detect(string = error_message$message,
