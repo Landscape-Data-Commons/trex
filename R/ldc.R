@@ -1,12 +1,3 @@
-# Requires:
-# stringr
-# httr
-# jsonlite
-# 
-# 
-
-
-
 #' Fetching data from the Landscape Data Commons via API query
 #' @description A function for making API calls to the Landscape Data Commons based on the table, key variable, and key variable values. It will return a table of records of the requested data type from the LDC in which the variable \code{key_type} contains only values found in \code{keys}. See the \href{https://api.landscapedatacommons.org/api-docs}{API documentation} to see which variables (i.e. \code{key_type} values) are valid for each data type.
 #' 
