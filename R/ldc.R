@@ -8,6 +8,8 @@
 #' @param query_parameters List. A list of query parameters which can be recognized by (\code{link[=format_query_parameters]{format_query_parameters()}}) and converted into a query for the API, e.g., \code{list("ProjectKey" = list("equals" = "BLM_AIM"))}. Defaults to an empty list which is equivalent to requesting all available records.
 #' @param username Optional character string. The username associated with the LDC API account and which has been used to store one or more API keys using (\code{link[=store_api_key]{store_api_key()}}). This is almost certainly an email address. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. Defaults to \code{NULL}.
 #' @param api_key_name Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.
+#' @param token Logical. If \code{TRUE} then a token will be retrieved from the appropriate keyring for the supplied username. If the token is expired or does not exist, a new one will be requested. This feature will be deprecated when the LDC API stops supporting tokens in favor of API keys. Defaults to \code{FALSE}.
+#' @param keyring_name Optional character string. The name of the keyring to attempt to retrieve passwords, keys, or tokens from. If \code{NULL} then the function will make a guess if needed. Defaults to \code{NULL}.
 # #' @param password Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.
 # #' @param key_chunk_size Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.
 #' @param timeout Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.
@@ -16,6 +18,8 @@
 # #' @param exact_match Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.
 #' @param coerce Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}. 
 #' @param base_url Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.
+#' @param multi_table_queries Logical. If \code{TRUE} then variables in \code{query_parameters} which do not occur in the table specified by \code{data_type} will be applied to other tables in the database as possible. The results of those ancillary queries are used to limit the PrimaryKey values in the data returned from the requested data type. If this is \code{FALSE} or any variables appear in no tables, an error will trigger. Defaults to \code{FALSE}.
+#' @param ignored_tables Optional character vector. If \code{multi_table_queries} is \code{TRUE} these tables will not be queried even if they contain the relevant variables. This is useful for preventing querying multiple tables which share a variable, e.g. "LineLengthAmount" which occurs in the LPI, gap, and height data. Aliases recognized by \code{ldc_table_names()} are accepted. Defaults to \code{NULL}.
 #' @param verbose Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.
 #' @returns A data frame of records from the requested \code{data_type} which contain the values from \code{keys} in the variable \code{key_type}.
 #' @seealso
@@ -48,6 +52,7 @@ fetch_ldc <- function(data_type,
                       coerce = TRUE,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
                       multi_table_queries = FALSE,
+                      ignored_tables = NULL,
                       verbose = FALSE,
                       keys = deprecated(),
                       key_type = deprecated(),
@@ -100,7 +105,7 @@ fetch_ldc <- function(data_type,
       token <- FALSE
     } else if (is.null(username)) {
       #if (verbose) {
-        warning("Because no username was provided, a token will not be used despite the argument token being set to TRUE.")
+      warning("Because no username was provided, a token will not be used despite the argument token being set to TRUE.")
       # }
       token <- FALSE
     } else {
@@ -157,12 +162,20 @@ fetch_ldc <- function(data_type,
     dplyr::arrange(.data = _,
                    field)
   
+  # So the user can exclude tables from being queried.
+  if (!is.null(ignored_tables)) {
+    required_tables_lut <- dplyr::filter(.data = required_tables_lut,
+                                         !(table_name %in% sapply(X = ignored_tables,
+                                                                  FUN = ldc_table_names)))
+  }
+  
   main_query_parameters <- dplyr::filter(.data = required_tables_lut,
                                          table_name == data_type) |>
     dplyr::pull(.data = _,
                 var = "field") |>
     query_parameters[.x = _]
   
+
   # This makes sure that we're preferentially querying the actual requested
   # table in situations where variables appear in multiple tables, e.g.
   # LineLengthAmount
@@ -200,18 +213,22 @@ fetch_ldc <- function(data_type,
                query_parameters[.x = _]
            })
   
-  
-  
-  # unavailable_variables <- setdiff(x = query_variables,
-  #                                  y = available_variables)
-  # 
-  # if (length(unavailable_variables) > 0) {
-  #   stop(paste0("The following query variables does not appear in ", data_type,
-  #               ": ", paste(unavailable_variables,
-  #                           collapse = ", "), "\n\nPossible valid key_type values for ", data_type, " are: ",
-  #               paste(available_variables,
-  #                     collapse = ", ")))
-  # }
+  if (!multi_table_queries) {
+    if (!all(names(query_parameters) %in% names(main_query_parameters))) {
+      stop(paste0("Some variables in query_parameters (", paste(setdiff(x = names(query_parameters),
+                                                                        y = names(main_query_parameters)),
+                                                                collapse = ", "), ") are not found in the requested data table (", data_type, "). Consider setting multi_table_queries to TRUE to try to use those parameters with other tables."))
+    }
+  } else {
+    if (!all(names(query_parameters) %in% c(names(main_query_parameters), sapply(X = ancillary_query_parameters,
+                                                                                 FUN = names)))) {
+      stop(paste0("The following variables in query_parameters are not found in any LDC database table: ",
+                  paste(setdiff(x = names(query_parameters),
+                                y = trex::ldc_schema[["field"]]),
+                        collapse = ", ")))
+    }
+  }
+
   
   if (!is.null(take)) {
     if (!is.numeric(take) | length(take) > 1) {
