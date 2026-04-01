@@ -113,12 +113,8 @@ setup_keyring <- function(username = NULL,
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 store_api_key <- function(username,
-                          # keyring_password = NULL,
-                          # api_key = NULL,
                           api_key_name = "default",
-                          # interactive = TRUE,
                           overwrite = FALSE,
-                          # sanitize = TRUE,
                           verbose = FALSE) {
   keyring_name <- get_trex_keyring_name(username = username,
                                         verbose = verbose)
