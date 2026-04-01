@@ -17,6 +17,7 @@ fetch_ldc(
   coerce = TRUE,
   base_url = "https://api.landscapedatacommons.org/api/v1/",
   multi_table_queries = FALSE,
+  ignored_tables = NULL,
   verbose = FALSE,
   keys = deprecated(),
   key_type = deprecated(),
@@ -34,6 +35,10 @@ fetch_ldc(
 
 \item{api_key_name}{Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.}
 
+\item{token}{Logical. If \code{TRUE} then a token will be retrieved from the appropriate keyring for the supplied username. If the token is expired or does not exist, a new one will be requested. This feature will be deprecated when the LDC API stops supporting tokens in favor of API keys. Defaults to \code{FALSE}.}
+
+\item{keyring_name}{Optional character string. The name of the keyring to attempt to retrieve passwords, keys, or tokens from. If \code{NULL} then the function will make a guess if needed. Defaults to \code{NULL}.}
+
 \item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
 
 \item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.}
@@ -43,6 +48,10 @@ fetch_ldc(
 \item{coerce}{Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}.}
 
 \item{base_url}{Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.}
+
+\item{multi_table_queries}{Logical. If \code{TRUE} then variables in \code{query_parameters} which do not occur in the table specified by \code{data_type} will be applied to other tables in the database as possible. The results of those ancillary queries are used to limit the PrimaryKey values in the data returned from the requested data type. If this is \code{FALSE} or any variables appear in no tables, an error will trigger. Defaults to \code{FALSE}.}
+
+\item{ignored_tables}{Optional character vector. If \code{multi_table_queries} is \code{TRUE} these tables will not be queried even if they contain the relevant variables. This is useful for preventing querying multiple tables which share a variable, e.g. "LineLengthAmount" which occurs in the LPI, gap, and height data. Aliases recognized by \code{ldc_table_names()} are accepted. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
