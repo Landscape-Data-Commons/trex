@@ -61,6 +61,7 @@ fetch_ldc <- function(data_type,
                       exact_match = deprecated()) {
   user_agent <- "http://github.com/Landscape-Data-Commons/trex"
   
+  #### Deprecation messages ----------------------------------------------------
   if (lifecycle::is_present(keys) | lifecycle::is_present(key_type)) {
     lifecycle::deprecate_warn(when = "2.0.0",
                               what = I("Support for the `key_type` and `keys` arguments of `fetch_ldc()`"),
@@ -92,6 +93,7 @@ fetch_ldc <- function(data_type,
                               details = "Partial string matching is not currently supported by the LDC API so the behavior is now always equivalent to exact_match = TRUE.")
   }
   
+  #### Credentialing checks ----------------------------------------------------
   if (is.null(username) & !is.null(api_key_name)) {
     warning("Although an api_key_name has been specified, no username has been provided and so no stored API key will be retrieved.")
     api_key_name <- NULL
@@ -115,44 +117,43 @@ fetch_ldc <- function(data_type,
     }
   }
   
-  # Get the API-recognized name for the submitted alias
-  data_type <- ldc_table_names(alias = data_type)
   
-  # if (!(class(keys) %in% c("character", "NULL"))) {
-  #   stop("keys must be a character string, vector of character strings, or NULL.")
-  # }
-  # 
-  # if (!(class(key_type) %in% c("character", "NULL"))) {
-  #   stop("key_type must be a character string or NULL.")
-  # }
-  # 
-  # if (!is.null(keys) & is.null(key_type)) {
-  #   stop("Must provide key_type when providing keys.")
-  # }
-  # 
-  # # Make sure we've got a query_parameters list even if they're using the stupid
-  # # old arguments from the dark ages
-  # if (!any(sapply(X = list(keys, key_type), FUN = is.null))) {
-  #   if (verbose) {
-  #     message("Adding the provided keys to the query_parameters list. Consider using the query_parameter argument instead.")
-  #   }
-  #   query_parameters[[key_type]] <- list("=" = keys)
-  # }
-  
-  # This uses the metadata to confirm that the query won't return an error due
-  # to referencing a variable that doesn't exist in the requested table.
-  
-  
-  # available_variables <- fetch_ldc_metadata(data_type = data_type) |>
-  #   dplyr::pull(.data = _,
-  #               var = "field")
-  
-  #### QUERY HANDLING ----------------------------------------------------------
+  #### Query Handling ----------------------------------------------------------
   # This will (potentially) produce multiple parameter lists.
   # The "main" query will be the one with parameters only for the requested
   # data_type and the others will be used to get a single set of PrimaryKeys
   # from however many other tables are needed that will get appended to the main
   # query to represent those.
+  
+  ##### Setup/Sanitization -----------------------------------------------------
+  # Get the API-recognized name for the submitted alias
+  data_type <- ldc_table_names(alias = data_type)
+  
+  # Get take set correctly
+  if (!is.null(take)) {
+    if (!is.numeric(take) | length(take) > 1) {
+      stop("take must either be NULL or a single numeric value.")
+    }
+    if (take > 10000) {
+      warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
+    }
+  } else {
+    if (verbose) {
+      message("No take value was specified. Defaulting to 10000, the default for the LDC API.")
+    }
+    take <- 10000
+  }
+  
+  if (delay < 0) {
+    stop("delay must be a positive numeric value.")
+  } else {
+    # Convert the value from milliseconds to nanoseconds because we'll be using
+    # microbenchmark::get_nanotime() which returns the current time in nanoseconds
+    delay <- delay * 10^6
+  }
+  
+  ##### Main versus ancillary queries ------------------------------------------
+  # Figuring out which tables are required for which variables.
   # ldc_schema is data set included in this package.
   required_tables_lut <- dplyr::filter(.data = ldc_schema,
                                        field %in% names(query_parameters)) |>
@@ -163,45 +164,52 @@ fetch_ldc <- function(data_type,
                    field)
   
   # So the user can exclude tables from being queried.
+  # In the case of things like LineLengthAmount which occurs in three different
+  # tables, all of which have huge numbers of records it can be helpful to pick
+  # and choose.
+  # Also useful for situations where only one method was collected for the
+  # target data, e.g. the plots only had LPI without canopy gap so unless gap
+  # is excluded, it'll determine that no data exist.
   if (!is.null(ignored_tables)) {
     required_tables_lut <- dplyr::filter(.data = required_tables_lut,
                                          !(table_name %in% sapply(X = ignored_tables,
                                                                   FUN = ldc_table_names)))
   }
   
+  # Which parameters should be applied to the target table?
+  # If a variable occurs in the target table, it's added here and not to any
+  # ancillary queries where it might apply.
   main_query_parameters <- dplyr::filter(.data = required_tables_lut,
                                          table_name == data_type) |>
     dplyr::pull(.data = _,
                 var = "field") |>
     query_parameters[.x = _]
   
-
-  # This makes sure that we're preferentially querying the actual requested
-  # table in situations where variables appear in multiple tables, e.g.
-  # LineLengthAmount
-  # if (limit_queries) {
-  #   if (verbose) {
-  #     message("Because limit_queries is TRUE, a query parameter involving a variable that occurs in multiple tables will be applied only to the requested data type or (in the case that it does not occur in that table) to only the first table listed in trex::ldc_schema that contains that variable.")
-  #   }
+  # Add take to the parameters
+  main_query_parameters[["take"]] <- list("=" = take)
+  
+  # Figuring out which tables to reference for ancillary queries. This may have
+  # no records at all, which is totally fine.
+  # It will return only the first table name associated with a variable even if
+  # it occurs across multiple tables. It will also exclude any variables already
+  # flagged as part of the main query being aimed at the target data.
   required_ancillary_tables_lut <- dplyr::filter(.data = required_tables_lut,
                                                  !(field %in% names(main_query_parameters))) |>
     dplyr::summarize(.data = _,
                      .by = field,
                      table_name = dplyr::first(table_name))
-  # } else {
-  #   
-  #   warning("Because limit_queries is FALSE, a query parameter involving a variable that occurs in multiple tables will be applied EVERY table it occurs in according to trex::ldc_schema. This is risky and very likely to return no data at all because very few PrimaryKeys occur in every table.")
-  #   
-  #   required_ancillary_tables_lut <- dplyr::filter(.data = required_tables_lut,
-  #                                                  table_name != data_type)
-  # }
   
   
-  ##### Ancillary queries ------------------------------------------------------
+  ##### Ancillary query construction -------------------------------------------
+  # This creates a named vector of the tables that are needed for ancillary
+  # queries so that the subsequent lapply() output is named according to the
+  # tables the queries are intended for.
   ancillary_query_parameters <- setNames(object = setdiff(x = unique(required_ancillary_tables_lut$table_name),
                                                           y = data_type),
                                          nm = setdiff(x = unique(required_ancillary_tables_lut$table_name),
                                                       y = data_type)) |>
+    # For each table identified, use the required_ancillary_tables_lut to pull
+    # only the matching parameters from the original query_parameters list.
     lapply(X = _,
            required_ancillary_tables_lut = required_ancillary_tables_lut,
            query_parameters = query_parameters,
@@ -213,6 +221,8 @@ fetch_ldc <- function(data_type,
                query_parameters[.x = _]
            })
   
+  # Feedback for the user about how multi_table_queries is affecting their whole
+  # situation with regards to the variables they want to use.
   if (!multi_table_queries) {
     if (!all(names(query_parameters) %in% names(main_query_parameters))) {
       stop(paste0("Some variables in query_parameters (", paste(setdiff(x = names(query_parameters),
@@ -228,60 +238,35 @@ fetch_ldc <- function(data_type,
                         collapse = ", ")))
     }
   }
-
   
-  if (!is.null(take)) {
-    if (!is.numeric(take) | length(take) > 1) {
-      stop("take must either be NULL or a single numeric value.")
+  if (length(ancillary_query_parameters) > 0) {
+    if (!multi_table_queries) {
+      stop(paste0("Some query parameters (", paste0(sapply(X = ancillary_query_parameters,
+                                                           FUN = names) |>
+                                                      unique() |>
+                                                      setdiff(x = _,
+                                                              y = "take"),
+                                                    collapse = ", "), ") would require querying additional tables (", paste(names(ancillary_query_parameters),
+                                                                                                                            collapse = ", "), "). To use those ancillary queries, set multi_table_queries to TRUE."))
     }
-    if (take > 10000) {
-      warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
-    }
-  } else {
-    if (verbose) {
-      message("No take value was specified. Defaulting to 10000.")
-    }
-    take <- 10000
-  }
-  
-  # Add take to the parameters
-  if (!is.null(take)) {
-    main_query_parameters[["take"]] <- list("=" = take)
-    
-    if (length(ancillary_query_parameters) > 0) {
-      if (!multi_table_queries) {
-        stop(paste0("Some query parameters (", paste0(sapply(X = ancillary_query_parameters,
-                                                             FUN = names) |>
-                                                        unique() |>
-                                                        setdiff(x = _,
-                                                                y = "take"),
-                                                      collapse = ", "), ") would require querying additional tables (", paste(names(ancillary_query_parameters),
-                                                                                                                              collapse = ", "), "). To use those ancillary queries, set multi_table_queries to TRUE."))
-      }
-      ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
-                                           take = take,
-                                           FUN = function(X, take){
-                                             X[["take"]] <- list("=" = take)
-                                             X
-                                           })
-    }
-  }
-  
-  if (delay < 0) {
-    stop("delay must be a positive numeric value.")
-  } else {
-    # Convert the value from milliseconds to nanoseconds because we'll be using
-    # microbenchmark::get_nanotime() which returns the current time in nanoseconds
-    delay <- delay * 10^6
+    # If there are ancillary queries to submit, make sure that take is in there.
+    ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
+                                         take = take,
+                                         FUN = function(X, take){
+                                           X[["take"]] <- list("=" = take)
+                                           X
+                                         })
   }
   
   if (verbose & is.null(api_key_name) & !token) {
     message("Retrieving only data which do not require credentials.")
   }
   
+  #### Querying ----------------------------------------------------------------
   # Just to keep track of the time elapsed.
   querying_start_time <- Sys.time()
   
+  ##### Ancillary querying -----------------------------------------------------
   # First up, if there are ancillary queries to make to other tables, we'll do
   # that because we'll want to add the PrimaryKeys to the main query.
   if (length(ancillary_query_parameters) > 0) {
@@ -290,14 +275,19 @@ fetch_ldc <- function(data_type,
                      paste(names(ancillary_query_parameters),
                            collapse = ", ")))
     }
-    # For each ancillary data table, we'll run the queries with the relevant
-    # parameters and keep only the unique PrimaryKey values from those.
+    # Ancillary queries will be submitted in sequence, accumulating PrimaryKey
+    # values as an additional parameter from the previous returned results.
+    # Eventually, all ancillary queries will be returned 
     primarykeys <- c()
     
     for (current_ancillary_table in names(ancillary_query_parameters)) {
       if (verbose) {
         message(paste0("Sending ancillary query regarding ", current_ancillary_table, "."))
       }
+      
+      # The while () loop here will keep submitting follow-up queries until one
+      # of them returns fewer records than the value of take which is the
+      # indication that there are no remaining qualifying records to return.
       data_list <- list()
       keep_querying <- TRUE
       current_ancillary_query_parameters <- ancillary_query_parameters[[current_ancillary_table]]
@@ -342,12 +332,14 @@ fetch_ldc <- function(data_type,
         }
         
         
-        # Bind that onto the end of the list
-        # The data are wrapped in list() so that it gets added
-        # as a data frame instead of as a vector for each variable
+        # Bind the results of the most recent query onto the end of the list.
+        # The data are wrapped in list() so that it gets added as a data frame
+        # instead of as a vector for each variable.
         data_list <- c(data_list,
                        list(current_data))
         
+        # Check to see if we have reason to suspect there are more records
+        # lurking in the table.
         if (nrow(current_data) < take) {
           if (verbose) {
             message("All qualifying data available with the provided credentials have been returned.")
@@ -360,29 +352,40 @@ fetch_ldc <- function(data_type,
           current_ancillary_query_parameters[["cursor"]] <- list("=" = max(current_data$rid))
           # Should be unnecessary, but just to be safe!
           keep_querying <- TRUE
-          
-          # And to avoid flooding the API server with requests, we'll put in a delay
-          # here.
-          # This gets the current time then spins its wheels, checking repeatedly to
-          # see if enough time has elapsed, at which point it moves on.
-          start_time <- microbenchmark::get_nanotime()
-          repeat {
-            current_time <- microbenchmark::get_nanotime()
-            elapsed_time <- current_time - start_time
-            if (elapsed_time > delay) {
-              break
-            }
+        }
+        
+        # And to avoid flooding the API server with requests, we'll put in a delay
+        # here.
+        # This gets the current time then spins its wheels, checking repeatedly to
+        # see if enough time has elapsed, at which point it moves on.
+        start_time <- microbenchmark::get_nanotime()
+        repeat {
+          current_time <- microbenchmark::get_nanotime()
+          elapsed_time <- current_time - start_time
+          if (elapsed_time > delay) {
+            break
           }
         }
       }
+      
+      # Keep only the returned PrimaryKeys from the most recent ancillary query!
+      # This prevents PrimaryKey values that only qualified in a single, earlier
+      # ancillary query from making it through.
       primarykeys <- dplyr::bind_rows(data_list) |>
         dplyr::pull(.data = _,
                     PrimaryKey) |>
-        unique() |>
-        c(.x = _,
-          primarykeys) |>
-        unique()
+        unique()# |>
+      # This kept all returned PrimaryKeys from ancillary queries, but that
+      # meant that some were included that only met the requirements for a
+      # single ancillary query and not all of them. It's preserved here just in
+      # case, but honestly should probably be chucked out.
+        # c(.x = _,
+        #   primarykeys) |>
+        # unique()
       
+      # If no PrimaryKeys are left in the results, we'll cut it off and tell the
+      # user.
+      # Otherwise, we'll update all the ancillary queries' PrimaryKey values
       if (length(primarykeys) > 0) {
         if (verbose) {
           message(paste0("Qualifying PrimaryKey values added to subsequent queries."))
@@ -391,9 +394,7 @@ fetch_ldc <- function(data_type,
         ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
                                              primarykeys = primarykeys,
                                              FUN = function(X, primarykeys){
-                                               X[["PrimaryKey"]][["="]] <- c(X[["PrimaryKey"]][["="]],
-                                                                             primarykeys) |>
-                                                 unique()
+                                               X[["PrimaryKey"]][["="]] <- c(primarykeys)
                                                X
                                              })
         
@@ -405,6 +406,9 @@ fetch_ldc <- function(data_type,
     }
   }
   
+  ##### Main query -------------------------------------------------------------
+  # This is the bit that updates the main query with the PrimaryKeys identified
+  # in the ancillary queries.
   if (length(primarykeys) > 0) {
     if (verbose) {
       message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
@@ -413,8 +417,11 @@ fetch_ldc <- function(data_type,
                                                       primarykeys) |>
       unique()
   } else {
-    warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
-    return(NULL)
+    # Only trigger this if there were no ancillary queries made.
+    if (length(ancillary_query_parameters) > 0) {
+      warning("No PrimaryKeys met all the requirements across the other table(s) associated with their query parameters, so no records of the requested data type would be retrieved. Returning NULL.")
+      return(NULL)
+    }
   }
   
   # Use the queries to snag data
@@ -524,6 +531,7 @@ fetch_ldc <- function(data_type,
                          digits = 2), " ", time_unit))
   }
   
+  #### Output ------------------------------------------------------------------
   # Combine all the results of the queries
   data <- dplyr::bind_rows(data_list)
   
