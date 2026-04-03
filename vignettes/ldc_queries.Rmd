@@ -60,7 +60,7 @@ The `fetch_ldc()` family of functions submits requests to the API using the POST
 
 The format that `format_query_parameters()` uses involves nested, named lists. For each variable that you want to apply an operator to, you need a list of the values associated with each operator. For example, the simplest request would be to ask for data from only the set of PrimaryKey values that represent sampling relevant to your questions:
 
-``` R
+``` r
 # All three of these will produce the same body to be sent to the API once run through format_query_parameters()
 query_parameter_1 <- list("PrimaryKey" = list("=" = c("WY_WFO_LUP_2022_WFO2022_NR_022_V12022-09-01",
                                                       "WY_WY-Kemmerer-FO-2021_KFO2021-011_V22021-09-01",
@@ -81,7 +81,7 @@ format_query_parameters(query_parameter_3)
 
 To request data without needing to know every single value in the variable being used, you can use a numeric inequality. For example, to request records where TotalFoliarCover is greater than or equal to 25% the list would look like this:
 
-``` R
+``` r
 # Because this is going through a parser before being sent off to the API, it can use an alias for the
 # operator that's more user-friendly. In this case, ">=" will be turned into "gte" in the body of the request.
 query_parameters <- list("TotalFoliarCover" = list(">=" = 25))
@@ -92,7 +92,7 @@ format_query_parameters(query_parameters)
 
 It may be that you want to specify more than one operator for a single variable. In that case, you can add more operators to the list associated with the variable name like this:
 
-``` R
+``` r
 # This will be understood as asking for records where the value for TotalFoliarCover is greater than or equal to
 # 25 AND less than 75.
 query_parameters <- list("TotalFoliarCover" = list(">=" = 25,
@@ -104,7 +104,7 @@ format_query_parameters(query_parameters)
 
 Your query parameters can also include multiple variables like this:
 
-``` R
+``` r
 # This will be understood as asking for records where the value for TotalFoliarCover is greater than or equal to
 # 25 AND less than 75 AND the value for AH_ShrubCover is less than 50.
 query_parameters <- list("TotalFoliarCover" = list(">=" = 25,
