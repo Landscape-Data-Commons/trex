@@ -16,8 +16,8 @@ fetch_rap(polygons, data_type = "cover", mask = TRUE, year = NULL)
 \item{data_type.}{Character string. The type of data to request. Valid values are \code{"cover"}, \code{"covermeterology"}, \code{"production"}, and \code{"production16day"}. Defaults to \code{"cover"}.}
 }
 \value{
-A data frame containing the requested data for the provided polygon.
+A data frame containing the requested data for the provided polygon. Units for cover are percent of area, units for production are pounds per acre.
 }
 \description{
-Query the RAP for tabular cover, meterological, or production data for a given polygon.
+Query the RAP for tabular cover, meteorological, or production data for a given polygon.
 }

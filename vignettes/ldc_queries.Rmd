@@ -1,0 +1,116 @@
+---
+title: "Submitting queries to the Landscape Data Commons API"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Submitting queries to the Landscape Data Commons API}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(trex)
+```
+
+When you don't want the Landscape Data Commons to return the entirety of a table, you can use query parameters to request only the data you actually want. The LDC API supports the ability to submit queries with multiple parameters using multiple operators which means that it's possible to ask the API to return subsets of data like the species richness records from only BLM AIM sampling locations north of 40 degrees latitude.
+
+# Query Parameter Basics
+
+A single query parameter specifies a variable/column in the data and limits on what value(s) in that variable to filter by before returning the data. The limits are defined with operators like "one of", "less than", "does not equal", and others. A parameter written out as a sentence would be something like "TotalFoliarCover is greater than or equal to 25%" which specifies the variable (TotalFoliarCover), the operator (greater than or equal to), and the value (25%).
+
+In versions of trex prior to 2.0.0, the `fetch_ldc()` function supported just one parameter at a time through the `keys` and `key_type` arguments and was equivalent to asking for records from the requested table where the `key_type` variable contained one of the values in `keys`. In versions 2.0.0 and greater, `fetch_ldc()` uses an argument called `query_parameters` which allows multiple parameters and to query based on parameters in tables other than the one specified as the `data_type` argument.
+
+## Operators
+
+In order to see the names of operators recognized and supported by the LDC API, you can reference the [API documentation page](https://api.landscapedatacommons.org/docs) or run `ldc_api_operators()` which shows the operators and the many aliases that trex has for them. The operators available are:
+
+-   Equal to
+
+    -   If writing a query by hand, this is the assumed operator for any parameter unless another is specified. This is also equivalent to "is in" or "one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
+
+-   Not equal to ("ne")
+
+    -   This is also equivalent to "is not in" or "is not one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
+
+-   Greater than or equal to ("gte")
+
+    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+
+-   Greater than ("gt")
+
+    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+
+-   Less than or equal to ("lte")
+
+    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+
+-   Less than ("lt")
+
+    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+
+## Building Query Parameters
+
+The `fetch_ldc()` family of functions submits requests to the API using the POST HTTP method. This uses a JSON format to include any credentials that the user has in the request headers as well as query parameters in the request body. It's possible to write the body by hand (see the [API documentation page](https://api.landscapedatacommons.org/docs) for details), but trex has `format_query_parameters()` which will take a structured list of one or more parameters and turn it into a character string to use as the body of the request.
+
+The format that `format_query_parameters()` uses involves nested, named lists. For each variable that you want to apply an operator to, you need a list of the values associated with each operator. For example, the simplest request would be to ask for data from only the set of PrimaryKey values that represent sampling relevant to your questions:
+
+``` r
+# All three of these will produce the same body to be sent to the API once run through format_query_parameters()
+query_parameter_1 <- list("PrimaryKey" = list("=" = c("WY_WFO_LUP_2022_WFO2022_NR_022_V12022-09-01",
+                                                      "WY_WY-Kemmerer-FO-2021_KFO2021-011_V22021-09-01",
+                                                      "WY_RSFO_RDI_2021_RDI2021_050_V12022-09-01")))
+
+query_parameter_2 <- list("PrimaryKey" = list("oneof" = c("WY_WFO_LUP_2022_WFO2022_NR_022_V12022-09-01",
+                                                      "WY_WY-Kemmerer-FO-2021_KFO2021-011_V22021-09-01",
+                                                      "WY_RSFO_RDI_2021_RDI2021_050_V12022-09-01")))
+
+query_parameter_3 <- list("PrimaryKey" = list("in" = c("WY_WFO_LUP_2022_WFO2022_NR_022_V12022-09-01",
+                                                      "WY_WY-Kemmerer-FO-2021_KFO2021-011_V22021-09-01",
+                                                      "WY_RSFO_RDI_2021_RDI2021_050_V12022-09-01")))
+
+format_query_parameters(query_parameter_1)
+format_query_parameters(query_parameter_2)
+format_query_parameters(query_parameter_3)
+```
+
+To request data without needing to know every single value in the variable being used, you can use a numeric inequality. For example, to request records where TotalFoliarCover is greater than or equal to 25% the list would look like this:
+
+``` r
+# Because this is going through a parser before being sent off to the API, it can use an alias for the
+# operator that's more user-friendly. In this case, ">=" will be turned into "gte" in the body of the request.
+query_parameters <- list("TotalFoliarCover" = list(">=" = 25))
+
+# The output from format_query_parameters is what the body of the request will look like.
+format_query_parameters(query_parameters)
+```
+
+It may be that you want to specify more than one operator for a single variable. In that case, you can add more operators to the list associated with the variable name like this:
+
+``` r
+# This will be understood as asking for records where the value for TotalFoliarCover is greater than or equal to
+# 25 AND less than 75.
+query_parameters <- list("TotalFoliarCover" = list(">=" = 25,
+                                                   "<" = 75))
+
+# The output from format_query_parameters is what the body of the request will look like.
+format_query_parameters(query_parameters)
+```
+
+Your query parameters can also include multiple variables like this:
+
+``` r
+# This will be understood as asking for records where the value for TotalFoliarCover is greater than or equal to
+# 25 AND less than 75 AND the value for AH_ShrubCover is less than 50.
+query_parameters <- list("TotalFoliarCover" = list(">=" = 25,
+                                                   "<" = 75),
+                         "AH_ShrubCover" = list("<" = 50))
+
+# The output from format_query_parameters is what the body of the request will look like.
+format_query_parameters(query_parameters)
+```
