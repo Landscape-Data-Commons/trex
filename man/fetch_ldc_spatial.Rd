@@ -7,15 +7,16 @@
 fetch_ldc_spatial(
   polygons,
   data_type,
-  token = NULL,
   username = NULL,
-  password = NULL,
-  key_chunk_size = 100,
+  api_key_name = NULL,
   timeout = 300,
-  take = NULL,
+  take = 10000,
   delay = 500,
   return_spatial = TRUE,
-  verbose = FALSE
+  base_url = "https://api.landscapedatacommons.org/api/v1/",
+  verbose = FALSE,
+  password = deprecated(),
+  key_chunk_size = deprecated()
 )
 }
 \arguments{
@@ -25,10 +26,6 @@ fetch_ldc_spatial(
 
 \item{username}{Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.}
 
-\item{password}{Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.}
-
-\item{key_chunk_size}{Numeric. The number of PrimaryKeys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
-
 \item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
 
 \item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.}
@@ -36,6 +33,8 @@ fetch_ldc_spatial(
 \item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.}
 
 \item{return_spatial}{Logical. If \code{TRUE} then the returned data will be an sf object. Otherwise if this is \code{FALSE} it will be a simple data frame. Defaults to \code{TRUE}.}
+
+\item{base_url}{Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }

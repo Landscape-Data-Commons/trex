@@ -325,6 +325,8 @@ fetch_ldc <- function(data_type,
       # indication that there are no remaining qualifying records to return.
       data_list <- list()
       keep_querying <- TRUE
+      current_ancillary_query_parameters <- ancillary_query_parameters[[current_ancillary_table]]
+      
       while (keep_querying) {
         if (verbose) {
           message("Submitting ancillary query to the API.")
@@ -413,9 +415,9 @@ fetch_ldc <- function(data_type,
       # meant that some were included that only met the requirements for a
       # single ancillary query and not all of them. It's preserved here just in
       # case, but honestly should probably be chucked out.
-        # c(.x = _,
-        #   primarykeys) |>
-        # unique()
+      # c(.x = _,
+      #   primarykeys) |>
+      # unique()
       
       # If no PrimaryKeys are left in the results, we'll cut it off and tell the
       # user.

@@ -5,40 +5,53 @@
 \title{Fetching data from the Landscape Data Commons via API query}
 \usage{
 fetch_ldc(
-  keys = NULL,
-  key_type = NULL,
   data_type,
+  query_parameters = list(),
   username = NULL,
-  password = NULL,
-  token = NULL,
-  key_chunk_size = 100,
+  api_key_name = NULL,
+  token = FALSE,
+  keyring_name = NULL,
   timeout = 300,
-  take = NULL,
-  delay = 500,
-  exact_match = TRUE,
-  verbose = FALSE
+  take = 10000,
+  delay = 2000,
+  coerce = TRUE,
+  base_url = "https://api.landscapedatacommons.org/api/v1/",
+  multi_table_queries = FALSE,
+  ignored_tables = NULL,
+  verbose = FALSE,
+  keys = deprecated(),
+  key_type = deprecated(),
+  password = deprecated(),
+  key_chunk_size = deprecated(),
+  exact_match = deprecated()
 )
 }
 \arguments{
-\item{keys}{Optional character vector. A character vector of all the values to search for in \code{key_type}. The returned data will consist only of records where \code{key_type} contained one of the key values, but there may be keys that return no records. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.}
+\item{data_type}{Character string. The type of data to query. Note that any variables specified in \code{query_parameters} must appear in the table corresponding to \code{data_type}. To see all valid values, use \code{ldc_table_names()}.}
 
-\item{key_type}{Optional character string. The name of the variable in the data to search for the values in \code{keys}. This must be the name of a variable that exists in the requested data type's table, e.g. \code{"PrimaryKey"} exists in all tables, but \code{"EcologicalSiteID"} is found only in some. If the function returns a status code of 500 as an error, this variable may not be found in the requested data type. If \code{NULL} then the entire table will be returned. Defaults to \code{NULL}.}
+\item{query_parameters}{List. A list of query parameters which can be recognized by (\code{link[=format_query_parameters]{format_query_parameters()}}) and converted into a query for the API, e.g., \code{list("ProjectKey" = list("equals" = "BLM_AIM"))}. Defaults to an empty list which is equivalent to requesting all available records.}
 
-\item{data_type}{Character string. The type of data to query. Note that the variable specified as \code{key_type} must appear in the table corresponding to \code{data_type}. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.}
+\item{username}{Optional character string. The username associated with the LDC API account and which has been used to store one or more API keys using (\code{link[=store_api_key]{store_api_key()}}). This is almost certainly an email address. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. Defaults to \code{NULL}.}
 
-\item{username}{Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.}
+\item{api_key_name}{Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.}
 
-\item{password}{Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.}
+\item{token}{Logical. If \code{TRUE} then a token will be retrieved from the appropriate keyring for the supplied username. If the token is expired or does not exist, a new one will be requested. This feature will be deprecated when the LDC API stops supporting tokens in favor of API keys. Defaults to \code{FALSE}.}
 
-\item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
+\item{keyring_name}{Optional character string. The name of the keyring to attempt to retrieve passwords, keys, or tokens from. If \code{NULL} then the function will make a guess if needed. Defaults to \code{NULL}.}
 
 \item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
 
-\item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.}
+\item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{10000}.}
 
-\item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.}
+\item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{2000} (2 seconds).}
 
-\item{exact_match}{Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.}
+\item{coerce}{Logical. If \code{TRUE} then the returned values will be coerced into the intended class when they don't match, e.g., if a date variable is a character string instead of a date. Defaults to \code{TRUE}.}
+
+\item{base_url}{Character string. The URL for the API endpoint to use. Defaults to \code{"https://api.landscapedatacommons.org/api/v1/"}.}
+
+\item{multi_table_queries}{Logical. If \code{TRUE} then variables in \code{query_parameters} which do not occur in the table specified by \code{data_type} will be applied to other tables in the database as possible. The results of those ancillary queries are used to limit the PrimaryKey values in the data returned from the requested data type. If this is \code{FALSE} or any variables appear in no tables, an error will trigger. Defaults to \code{FALSE}.}
+
+\item{ignored_tables}{Optional character vector. If \code{multi_table_queries} is \code{TRUE} these tables will not be queried even if they contain the relevant variables. This is useful for preventing querying multiple tables which share a variable, e.g. "LineLengthAmount" which occurs in the LPI, gap, and height data. Aliases recognized by \code{ldc_table_names()} are accepted. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
@@ -51,11 +64,19 @@ A function for making API calls to the Landscape Data Commons based on the table
 There are additional functions to simplify querying by spatial location (\code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}}) and by ecological site ID (\code{\link[=fetch_ldc_ecosite]{fetch_ldc_ecosite()}}).
 }
 \examples{
-# To retrieve all sampling location metadata collected in the ecological sites R036XB006NM and R036XB007NM
-headers <- fetch_ldc(keys = c("R036XB006NM", "R036XB007NM"), key_type = "EcologicalSiteID", data_type = "header")
-# To retrieve all LPI data collected in ecological sites in the 036X Major Land Resource Area (MLRA)
-relevant_headers <- fetch_ldc(keys = "036X", key_type = "EcologicalSiteID", data_type = "header", exact_match = FALSE)
-lpi_data <- fetch_ldc(keys = relevant_headers$PrimaryKey, key_type = "PrimaryKey". data_type = "lpi", take = 10000)
+# To retrieve all sampling location metadata collected in the ecological
+# sites R036XB006NM and R036XB007NM.
+headers <- fetch_ldc(query_parameters = list("EcologicalSiteID" = list("=" = c("R036XB006NM",
+                                                                               "R036XB007NM"))),
+                                        data_type = "header")
+                                        
+# To retrieve all Line-Point Intercept collected between 40 and 45 degrees
+# latitude (inclusive) and east of -115 degrees longitude (exclusive).
+lpi_data <- fetch_ldc(query_parameters = list("Latitude_NAD83" = list(">=" = 40,
+                                                                      "<=" = 45),
+                                              "Longitude_NAD83" = list(">" = -115)),
+                      data_type = "lpi")
+                                        
 }
 \seealso{
 \code{\link[=fetch_ldc_spatial]{fetch_ldc_spatial()}} will query for data by spatial location.

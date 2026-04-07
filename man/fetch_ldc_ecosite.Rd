@@ -5,37 +5,35 @@
 \title{Fetching data from the Landscape Data Commons via API query using ecological site IDs}
 \usage{
 fetch_ldc_ecosite(
-  keys,
   data_type,
-  token = NULL,
+  ecosite_ids,
   username = NULL,
-  password = NULL,
-  key_chunk_size = 100,
+  api_key_name = NULL,
+  token = FALSE,
   timeout = 300,
   take = NULL,
   delay = 500,
-  exact_match = TRUE,
-  verbose = FALSE
+  base_url = "https://api.landscapedatacommons.org/api/v1/",
+  verbose = FALSE,
+  keys = deprecated(),
+  key_chunk_size = deprecated(),
+  exact_match = deprecated()
 )
 }
 \arguments{
-\item{keys}{Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.}
-
 \item{data_type}{Character string. The type of data to query. Valid values are: \code{'gap'}, \code{'header'}, \code{'height'}, \code{'lpi'}, \code{'soilstability'}, \code{'speciesinventory'}, \code{'indicators'}, \code{'species'}, \code{'dustdeposition'}, \code{'horizontalflux'}, and \code{'schema'}.}
 
-\item{username}{Optional character string. The username to supply to the Landscape Data Commons API. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{password} is \code{NULL}. Defaults to \code{NULL}.}
+\item{ecosite_ids}{Character vector. All the ecological site IDs (e.g. \code{"R036XB006NM"}) to search for. The returned data will consist only of records where the designated ecological site ID matched one of these values, but there may be ecological site IDS that return no records.}
 
-\item{password}{Optional character string. The password to supply to the Landscape Data Commons API.  Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. This argument will be ignored if \code{username} is \code{NULL}. Defaults to \code{NULL}.}
+\item{username}{Optional character string. The username associated with the LDC API account and which has been used to store one or more API keys using (\code{link[=store_api_key]{store_api_key()}}). This is almost certainly an email address. Some data in the Landscape Data Commons are accessible only to users with appropriate credentials. You do not need to supply credentials, but an API request made without them may return fewer or no data. Defaults to \code{NULL}.}
 
-\item{key_chunk_size}{Numeric. The number of keys to send in a single query. Very long queries fail, so the keys may be chunked into smaller queries with the results of all the queries being combined into a single output. Defaults to \code{100}.}
+\item{api_key_name}{Optional character string. The name used to store the API key to submit with the query and which is associated with \code{username}. If this is \code{NULL} only data which do not require special permissions will be returned. Defaults to \code{NULL}.}
 
 \item{timeout}{Numeric. The number of seconds to wait for a nonresponse from the API before considering the query to have failed. Defaults to \code{300}.}
 
 \item{take}{Optional numeric. The number of records to retrieve at a time. This is NOT the total number of records that will be retrieved! Queries that retrieve too many records at once can fail, so this allows the process to retrieve them in smaller chunks. The function will keep requesting records in chunks equal to this number until all matching records have been retrieved. If this value is too large (i.e., much greater than about \code{10000}), the server will likely respond with a 500 error. If \code{NULL} then all records will be retrieved in a single pass. Defaults to \code{NULL}.}
 
 \item{delay}{Optional numeric. The number of milliseconds to wait between API queries. Querying too quickly can crash an API or get you locked out, so adjust this as needed. Defaults to \code{500}.}
-
-\item{exact_match}{Logical. If \code{TRUE} then only records for which the provided keys are an exact match will be returned. If \code{FALSE} then records containing (but not necessarily matching exactly) the first provided key value will be returned e.g. searching with \code{exact_match = FALSE}, \code{keys = "42"}, and \code{key_type = "EcologicalSiteID"} would return all records in which the ecological site ID contained the string \code{"42"} such as \code{"R042XB012NM"} or \code{"R036XB042NM"}. If \code{FALSE} only the first provided key value will be considered. Using non-exact matching will dramatically increase server response times, so use with caution. Defaults to \code{TRUE}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report additional diagnostic messages as it executes. Defaults to \code{FALSE}.}
 }
@@ -49,7 +47,9 @@ When you already know the associated PrimaryKeys, use \code{\link[=fetch_ldc]{fe
 }
 \examples{
 # To retrieve all LPI records associated with the ecological sites R036XB006NM and R036XB007NM
-fetch_ldc_ecosite(keys = c("R036XB006NM", "R036XB007NM"), data_type = "lpi")
+fetch_ldc_ecosite(data_type = "lpi",
+                  ecosite_ids = c("R036XB006NM",
+                                  "R036XB007NM"))
 }
 \seealso{
 \code{\link[=fetch_ldc]{fetch_ldc()}} will query for data by any key values.
