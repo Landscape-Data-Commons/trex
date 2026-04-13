@@ -266,6 +266,8 @@ fetch_ldc <- function(data_type,
   # Just to keep track of the time elapsed.
   querying_start_time <- Sys.time()
   
+  primarykeys <- c()
+  
   ##### Ancillary querying -----------------------------------------------------
   # First up, if there are ancillary queries to make to other tables, we'll do
   # that because we'll want to add the PrimaryKeys to the main query.
@@ -278,7 +280,7 @@ fetch_ldc <- function(data_type,
     # Ancillary queries will be submitted in sequence, accumulating PrimaryKey
     # values as an additional parameter from the previous returned results.
     # Eventually, all ancillary queries will be returned 
-    primarykeys <- c()
+    # primarykeys <- c()
     
     for (current_ancillary_table in names(ancillary_query_parameters)) {
       if (verbose) {
