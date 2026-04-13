@@ -181,6 +181,13 @@ get_stored_key <- function(username,
                            accept_failure = TRUE,
                            verbose = FALSE) {
   
+  if (is.null(username)) {
+    if (verbose) {
+      message("username is NULL, returning NULL.")
+    }
+    return(NULL)
+  }
+  
   if (is.null(api_key_name)) {
     if (verbose) {
       message("Using 'default' as the api_key_name.")
