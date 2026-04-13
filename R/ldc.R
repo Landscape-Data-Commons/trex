@@ -432,6 +432,11 @@ fetch_ldc <- function(data_type,
         ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
                                              primarykeys = primarykeys,
                                              FUN = function(X, primarykeys){
+                                               current_pks <- X[["PrimaryKey"]][["="]]
+                                               if (!is.null(current_pks)) {
+                                                 primarykeys <- intersect(x = primarykeys,
+                                                                          y = current_pks)
+                                               }
                                                X[["PrimaryKey"]][["="]] <- c(primarykeys)
                                                X
                                              })
@@ -451,8 +456,12 @@ fetch_ldc <- function(data_type,
     if (verbose) {
       message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
     }
-    main_query_parameters[["PrimaryKey"]][["="]] <- c(main_query_parameters[["PrimaryKey"]][["="]],
-                                                      primarykeys) |>
+    current_pks <- main_query_parameters[["PrimaryKey"]][["="]]
+    if (!is.null(current_pks)) {
+      primarykeys <- intersect(x = primarykeys,
+                               y = current_pks)
+    }
+    main_query_parameters[["PrimaryKey"]][["="]] <- c(primarykeys) |>
       unique()
   } else {
     # Only trigger this if there were no ancillary queries made.
