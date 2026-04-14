@@ -266,6 +266,8 @@ fetch_ldc <- function(data_type,
   # Just to keep track of the time elapsed.
   querying_start_time <- Sys.time()
   
+  primarykeys <- c()
+  
   ##### Ancillary querying -----------------------------------------------------
   # First up, if there are ancillary queries to make to other tables, we'll do
   # that because we'll want to add the PrimaryKeys to the main query.
@@ -278,19 +280,55 @@ fetch_ldc <- function(data_type,
     # Ancillary queries will be submitted in sequence, accumulating PrimaryKey
     # values as an additional parameter from the previous returned results.
     # Eventually, all ancillary queries will be returned 
-    primarykeys <- c()
+    # primarykeys <- c()
     
     for (current_ancillary_table in names(ancillary_query_parameters)) {
       if (verbose) {
         message(paste0("Sending ancillary query regarding ", current_ancillary_table, "."))
       }
       
+      ###### "Like" ------------------------------------------------------------
+      # This is adding support for the partial string matching that was
+      # implemented in a previous version of the API.
+      # If the user has any parameters that use the operator "like", those are
+      # set aside for filtering after the data are returned.
+      current_ancillary_query_parameters <- ancillary_query_parameters[[current_ancillary_table]] |>
+        lapply(X = _,
+               FUN = function(X){
+                 lapply(X = X,
+                        FUN = function(X){
+                          acceptable_parameters <- X[setdiff(x = names(x),
+                                                             y = "like")]
+                          if (length(acceptable_parameters) > 0) {
+                            acceptable_parameters
+                          } else {
+                            NULL
+                          }
+                        })
+               })
+      
+      current_like_parameters <- ancillary_query_parameters[[current_ancillary_table]] |>
+        lapply(X = _,
+               FUN = function(X){
+                 lapply(X = X,
+                        FUN = function(X){
+                          acceptable_parameters <- X["like"]
+                          if (length(acceptable_parameters) > 0) {
+                            acceptable_parameters
+                          } else {
+                            NULL
+                          }
+                        })
+               })
+      
+      ##### While --------------------------------------------------------------
       # The while () loop here will keep submitting follow-up queries until one
       # of them returns fewer records than the value of take which is the
       # indication that there are no remaining qualifying records to return.
       data_list <- list()
       keep_querying <- TRUE
       current_ancillary_query_parameters <- ancillary_query_parameters[[current_ancillary_table]]
+      
       while (keep_querying) {
         if (verbose) {
           message("Submitting ancillary query to the API.")
@@ -379,9 +417,9 @@ fetch_ldc <- function(data_type,
       # meant that some were included that only met the requirements for a
       # single ancillary query and not all of them. It's preserved here just in
       # case, but honestly should probably be chucked out.
-        # c(.x = _,
-        #   primarykeys) |>
-        # unique()
+      # c(.x = _,
+      #   primarykeys) |>
+      # unique()
       
       # If no PrimaryKeys are left in the results, we'll cut it off and tell the
       # user.
@@ -394,6 +432,11 @@ fetch_ldc <- function(data_type,
         ancillary_query_parameters <- lapply(X = ancillary_query_parameters,
                                              primarykeys = primarykeys,
                                              FUN = function(X, primarykeys){
+                                               current_pks <- X[["PrimaryKey"]][["="]]
+                                               if (!is.null(current_pks)) {
+                                                 primarykeys <- intersect(x = primarykeys,
+                                                                          y = current_pks)
+                                               }
                                                X[["PrimaryKey"]][["="]] <- c(primarykeys)
                                                X
                                              })
@@ -413,8 +456,12 @@ fetch_ldc <- function(data_type,
     if (verbose) {
       message(paste0("Qualifying PrimaryKey values added to the query for the table ", data_type, "."))
     }
-    main_query_parameters[["PrimaryKey"]][["="]] <- c(main_query_parameters[["PrimaryKey"]][["="]],
-                                                      primarykeys) |>
+    current_pks <- main_query_parameters[["PrimaryKey"]][["="]]
+    if (!is.null(current_pks)) {
+      primarykeys <- intersect(x = primarykeys,
+                               y = current_pks)
+    }
+    main_query_parameters[["PrimaryKey"]][["="]] <- c(primarykeys) |>
       unique()
   } else {
     # Only trigger this if there were no ancillary queries made.
