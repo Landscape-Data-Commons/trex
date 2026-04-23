@@ -155,7 +155,7 @@ fetch_ldc <- function(data_type,
   ##### Main versus ancillary queries ------------------------------------------
   # Figuring out which tables are required for which variables.
   # ldc_schema is data set included in this package.
-  required_tables_lut <- dplyr::filter(.data = ldc_schema,
+  required_tables_lut <- dplyr::filter(.data = trex::ldc_schema,
                                        field %in% names(query_parameters)) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(c("table_name",
