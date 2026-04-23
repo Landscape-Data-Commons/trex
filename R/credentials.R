@@ -24,7 +24,7 @@ get_trex_keyring_name <- function(username,
                                   verbose = FALSE) {
   if (!keyring::has_keyring_support()) {
     if (verbose) {
-      message(paste0("The system doesn't support multiple keychains. Returning NULL (equivalent to the default keyring name for the system/OS)."))
+      message(paste0("The system doesn't support multiple keyrings. Returning NULL (equivalent to the default keyring name for the system/OS)."))
     }
     NULL
   }
