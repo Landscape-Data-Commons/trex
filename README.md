@@ -47,7 +47,7 @@ The LDC does contain data which are not publicly available but which can be acce
 
 The trex supports the use of short-lived tokens and longer-lived API keys. The LDC API currently uses tokens, but will eventually remove token support in favor of keys.
 
-To manage passwords, trex uses the package [keyring](https://cran.r-project.org/web/packages/keyring/index.html) which helps store credentials in a system-managed keyring. If you have API credentials that you want to use (either a password or a key) you need to have first set up a keyring using `trex::setup_keychain()`. Once a keyring is set up, keys and passwords can be stored using `store_api_key()` and `store_password()` then later retrieved with `get_stored_key()` and `get_stored_password()`. Functions like `fetch_ldc()` reference the keyring whenever they need a key or password and prompt the user to unlock it when needed, helping to prevent accidentally saving plaintext passwords.
+To manage passwords, trex uses the package [keyring](https://cran.r-project.org/web/packages/keyring/index.html) which helps store credentials in a system-managed keyring. If you have API credentials that you want to use (either a password or a key) you need to have first set up a keyring using `trex::setup_keyring()`. Once a keyring is set up, keys and passwords can be stored using `store_api_key()` and `store_password()` then later retrieved with `get_stored_key()` and `get_stored_password()`. Functions like `fetch_ldc()` reference the keyring whenever they need a key or password and prompt the user to unlock it when needed, helping to prevent accidentally saving plaintext passwords.
 
 ### Ecosystem Dynamics Interpretive Tool
 
