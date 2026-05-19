@@ -1473,6 +1473,7 @@ ldc_table_names <- function(alias = NULL){
                   "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataplotcharacterization"),
                   "dataHorizontalFlux" = c("horizontalflux", "flux", "datahorizontalflux"),
                   "dataSoilHorizons" = c("soil", "soilhorizons", "horizons", "datasoilhorizons"),
+                  # "dataPlantProduction" = c("production", "plantproduction", "dataplantproduction"),
                   "tblRHEM" = c("rhem", "tblrhem"),
                   "tblProject" = c("project", "projects", "tblproject"))
   
