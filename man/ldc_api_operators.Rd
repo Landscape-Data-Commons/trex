@@ -23,5 +23,4 @@ ldc_api_operator_lookup <- ldc_api_operators()
 # Get the operator associated with an alias.
 ldc_api_operators(operator = "oneof")
 ldc_api_operators(operator = ">=")
-
 }
