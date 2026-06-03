@@ -1459,7 +1459,7 @@ format_query_parameters <- function(...){
 #' 
 #' # Get the name of the table associated with gap data.
 #' ldc_table_lookup <- ldc_table_names(alias = "gap")
-#' 
+#' @export
 ldc_table_names <- function(alias = NULL){
   aliases <- list("dataGap" = c("gap", "datagap"),
                   "dataHeader" = c("header", "dataheader"),
@@ -1515,7 +1515,7 @@ ldc_table_names <- function(alias = NULL){
 #' # Get the operator associated with an alias.
 #' ldc_api_operators(operator = "oneof")
 #' ldc_api_operators(operator = ">=")
-#' 
+#' @export
 ldc_api_operators <- function(operator = NULL){
   # This is structured like a list for the convenience of maintenance.
   recognized_operators <- list("gt" = c("gt",

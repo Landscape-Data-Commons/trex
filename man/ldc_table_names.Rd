@@ -23,5 +23,4 @@ ldc_table_lookup <- ldc_table_names()
 
 # Get the name of the table associated with gap data.
 ldc_table_lookup <- ldc_table_names(alias = "gap")
-
 }
