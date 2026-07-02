@@ -1470,10 +1470,10 @@ ldc_table_names <- function(alias = NULL){
                   "geoIndicators" = c("indicators", "geoindicators"),
                   "geoSpecies" = c("species", "geospecies"),
                   "dataAeroSummary" = c("aero", "aerosummary", "dataaerosummary"),
-                  "dataPlotCharacterization" = c("plotchar", "plotcharacterization", "dataplotcharacterization"),
+                  "dataPlotCharacterization" = c("plotchar", "characterization", "plotcharacterization", "dataplotcharacterization"),
                   "dataHorizontalFlux" = c("horizontalflux", "flux", "datahorizontalflux"),
-                  "dataSoilHorizons" = c("soil", "soilhorizons", "horizons", "datasoilhorizons"),
-                  # "dataPlantProduction" = c("production", "plantproduction", "dataplantproduction"),
+                  "dataSoilHorizons" = c("soil", "soilhorizons", "horizons", "soilpits", "datasoilhorizons"),
+                  "dataPlantProduction" = c("production", "plantproduction", "dataplantproduction"),
                   "tblRHEM" = c("rhem", "tblrhem"),
                   "tblProject" = c("project", "projects", "tblproject"))
   
