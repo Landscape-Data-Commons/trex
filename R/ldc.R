@@ -297,7 +297,7 @@ fetch_ldc <- function(data_type,
                FUN = function(X){
                  lapply(X = X,
                         FUN = function(X){
-                          acceptable_parameters <- X[setdiff(x = names(x),
+                          acceptable_parameters <- X[setdiff(x = names(X),
                                                              y = "like")]
                           if (length(acceptable_parameters) > 0) {
                             acceptable_parameters
