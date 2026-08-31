@@ -30,29 +30,29 @@ In versions of trex prior to 2.0.0, the `fetch_ldc()` function supported just on
 
 In order to see the names of operators recognized and supported by the LDC API, you can reference the [API documentation page](https://api.landscapedatacommons.org/docs) or run `ldc_api_operators()` which shows the operators and the many aliases that trex has for them. The operators available are:
 
--   Equal to
+- Equal to
 
-    -   If writing a query by hand, this is the assumed operator for any parameter unless another is specified. This is also equivalent to "is in" or "one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
+  - If writing a query by hand, this is the assumed operator for any parameter unless another is specified. This is also equivalent to "is in" or "one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
 
--   Not equal to ("ne")
+- Not equal to ("ne")
 
-    -   This is also equivalent to "is not in" or "is not one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
+  - This is also equivalent to "is not in" or "is not one of" when used with multiple values. This can be applied to variables containing numeric or character string values.
 
--   Greater than or equal to ("gte")
+- Greater than or equal to ("gte")
 
-    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+  - This can only be applied to numeric variables and can only be used with a single value at a time.
 
--   Greater than ("gt")
+- Greater than ("gt")
 
-    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+  - This can only be applied to numeric variables and can only be used with a single value at a time.
 
--   Less than or equal to ("lte")
+- Less than or equal to ("lte")
 
-    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+  - This can only be applied to numeric variables and can only be used with a single value at a time.
 
--   Less than ("lt")
+- Less than ("lt")
 
-    -   This can only be applied to numeric variables and can only be used with a single value at a time.
+  - This can only be applied to numeric variables and can only be used with a single value at a time.
 
 ## Building Query Parameters
 
