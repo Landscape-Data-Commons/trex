@@ -1144,7 +1144,7 @@ query_ldc <- function(data_type,
     } else if (response$status_code == 502) {
       stop(paste0("Query failed with status ",
                   response$status_code,
-                  " which is likely due to a server-side issue. Please contact the LDC admin if this problem persists."))
+                  " which is likely due to a server-side issue or due to submitting queries too rapidly. Consider setting either delay (currently ", delay,") or take (currently ", take, ") to a larger value. Please contact the LDC admin if this problem persists."))
     } else if (response$status_code == 401) {
       stop(paste0("Query failed with status ",
                   response$status_code,
