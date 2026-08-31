@@ -1,7 +1,7 @@
 Package: trex
 Type: Package
 Title: Tools for accessing Landscape Data Commons (LDC) and Ecosystems Dynamics Interpretive Tool (EDIT) APIs
-Version: 2.0.3
+Version: 2.0.5
 Author: c(person(given = "Nelson", family = "Stauffer, role = c("aut", "cre"), email = "nelson.stauffer@ars.usda.gov"),
           person(given = "Joe", family = "Brehm", role = c("aut", "cre"), email = "jrbrehm@nmsu.edu"))
 Maintainer: Nelson Stauffer <nelson.stauffer@usda.gov>
@@ -9,12 +9,12 @@ Description: Tools for accessing Landscape Data Commons (LDC), Ecosystems Dynami
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.3
 Imports:
     dplyr,
     stringr,
     tidyr,
     sf,
+    httr,
     rlang,
     utils,
     stats,
@@ -25,3 +25,4 @@ Imports:
 Suggests: knitr, rmarkdown
 Depends: R (>= 4.3.0)
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
