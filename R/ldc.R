@@ -909,6 +909,7 @@ fetch_ldc_metadata <- function(data_type,
 coerce_ldc <- function(data,
                        data_type,
                        check_api = FALSE,
+                       force_coercion = FALSE,
                        base_url = "https://api.landscapedatacommons.org/api/v1",
                        verbose = FALSE) {
   data_type <- ldc_table_names(alias = data_type)
@@ -948,8 +949,28 @@ coerce_ldc <- function(data,
                                                                                              data_class_r != "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
-                                                .fns = ~ methods::as(object = .x,
-                                                                     Class = var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()])),
+                                                .fns = ~ {
+                                                  target_class <- var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()]
+                                                  current_vector <- .x
+                                                  coerced_vector <- methods::as(object = .x,
+                                                                                Class = target_class)
+                                                  # This is here because we need to make sure that we don't get false positives for NA introduction
+                                                  # when the original vector already had NA values in it.
+                                                  coerced_fine <- identical(which(is.na(current_vector)),
+                                                                            which(is.na(coerced_vector)))
+                                                  
+                                                  if (coerced_fine) {
+                                                    coerced_vector
+                                                  } else if (force_coercion) {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " was coerced to ", target_class, " but NA values were introduced."))
+                                                    coerced_vector
+                                                  } else {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " could not be coerced without introducing NA values and has been left as ", class(.x), "."))
+                                                    current_vector
+                                                  }
+                                                }),
                                   # Doing some manual work on the dates because
                                   # the previous step claims there's no method for
                                   # coercion as written.
@@ -960,10 +981,34 @@ coerce_ldc <- function(data,
                                                                                              data_class_r == "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
-                                                .fns = ~ substr(x = .x,
-                                                                start = 1,
-                                                                stop = 10) |>
-                                                  as.Date(x = _)))
+                                                .fns = ~ {
+                                                  # NOTE! This enforces an as.character() which we expect to do nothing
+                                                  # because variables being coerced to dates *should* be character
+                                                  # but this could cause some trouble.
+                                                  current_vector <- as.character(.x) |>
+                                                    substr(x = ,
+                                                           start = 1,
+                                                           stop = 10)
+                                                  coerced_vector <- as.Date(x = current_vector)
+                                                  coerced_fine <- identical(which(is.na(current_vector)),
+                                                                            which(is.na(coerced_vector)))
+                                                  if (coerced_fine) {
+                                                    coerced_vector
+                                                  } else if (force_coercion) {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " was coerced to date but NA values were introduced."))
+                                                    coerced_vector
+                                                  } else {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " could not be coerced without introducing NA values and has been left as ", class(.x), "."))
+                                                    .x
+                                                  }
+                                                  }
+                                                ))
+                                                # .fns = ~ substr(x = .x,
+                                                #                 start = 1,
+                                                #                 stop = 10) |>
+                                                #   as.Date(x = _)))
     
     
     if (verbose) {
