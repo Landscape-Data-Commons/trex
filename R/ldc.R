@@ -47,7 +47,7 @@ fetch_ldc <- function(data_type,
                       token = FALSE,
                       keyring_name = NULL,
                       timeout = 300,
-                      take = 10000,
+                      take = 20000,
                       delay = 2000,
                       coerce = TRUE,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
@@ -134,14 +134,15 @@ fetch_ldc <- function(data_type,
     if (!is.numeric(take) | length(take) > 1) {
       stop("take must either be NULL or a single numeric value.")
     }
-    if (take > 10000) {
-      warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
+    if (take > 20000) {
+      message(paste0("The current take value (", take, ") is larger than the maximum currently allowed by the LDC API, 20000 so take will be set to 20000."))
     }
+    take <- 20000
   } else {
     if (verbose) {
-      message("No take value was specified. Defaulting to 10000, the default for the LDC API.")
+      message("No take value was specified. Defaulting to 20000, the maximum for the LDC API.")
     }
-    take <- 10000
+    take <- 20000
   }
   
   if (delay < 0) {
@@ -1207,7 +1208,7 @@ query_ldc <- function(data_type,
 #' 
 stringify_query_parameter <- function(variable,
                                       operator = "equals",
-                                      values){
+                                      values) {
   
   
   if (!is.character(operator) | length(operator) != 1) {
