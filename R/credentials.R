@@ -118,6 +118,7 @@ setup_keyring <- function(username = NULL,
 #' @export
 store_api_key <- function(username,
                           api_key_name = "default",
+                          key = NULL,
                           overwrite = FALSE,
                           verbose = FALSE) {
   keyring_name <- get_trex_keyring_name(username = username,
@@ -147,10 +148,21 @@ store_api_key <- function(username,
     stop("There is already an API key stored under the name '",
          api_key_name, "'. Either provide a different name or set the argument overwrite to TRUE.")
   } else {
-    keyring::key_set(service = api_key_name,
-                     keyring = keyring_name,
-                     username = username,
-                     prompt = "LDC API key:")
+    if (is.null(key)) {
+      keyring::key_set(service = api_key_name,
+                       keyring = keyring_name,
+                       username = username,
+                       prompt = "LDC API key:")
+    } else {
+      if (verbose) {
+        warning("When providing your API key as an argument, be sure to avoid saving it as plaintext in your code.")
+      }
+      keyring::key_set_with_value(service = api_key_name,
+                       keyring = keyring_name,
+                       username = username,
+                       password = key)
+    }
+    
     if (verbose) {
       message(paste0("Storing the provided API key with the name ",
                      api_key_name, "."))
