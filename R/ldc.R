@@ -1139,6 +1139,16 @@ query_ldc <- function(data_type,
       stop("If the argument body is not NULL it must either be a correctly-formatted string or a list that can be converted to a correctly-string with format_query_parameters().")
     }
   }
+  
+  # tblProject is not currently queryable with parameters???
+  if (data_type == "tblProject") {
+    if (verbose) {
+      message("Because data_type is 'tblProject', no parameters will be passed in the query.")
+    }
+    body_string <- "{}"
+  }
+  
+  
   if (verbose) {
     message("Querying using the body:")
     message(body_string)
