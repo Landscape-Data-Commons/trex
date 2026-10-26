@@ -53,6 +53,7 @@ fetch_ldc <- function(data_type,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
                       multi_table_queries = FALSE,
                       ignored_tables = NULL,
+                      api_key = NULL,
                       verbose = FALSE,
                       keys = deprecated(),
                       key_type = deprecated(),
@@ -97,6 +98,10 @@ fetch_ldc <- function(data_type,
   if (is.null(username) & !is.null(api_key_name)) {
     warning("Although an api_key_name has been specified, no username has been provided and so no stored API key will be retrieved.")
     api_key_name <- NULL
+  }
+  
+  if (verbose & !is.null(api_key)) {
+    warning("When providing your API key as an argument, be sure to avoid saving it as plaintext in your code.")
   }
   
   if (token) {
@@ -362,9 +367,14 @@ fetch_ldc <- function(data_type,
         } else {
           current_data <- query_ldc(data_type = current_ancillary_table,
                                     body = current_ancillary_query_parameters,
-                                    api_key = get_stored_key(username = username,
-                                                             api_key_name = api_key_name,
-                                                             keyring_name = keyring_name),
+                                    api_key = if (is.null(api_key)) {
+                                      get_stored_key(username = username,
+                                                     api_key_name = api_key_name,
+                                                     keyring_name = keyring_name)
+                                    } else {
+                                      api_key
+                                    },
+                                    token = NULL,
                                     base_url = base_url,
                                     timeout = timeout,
                                     verbose = verbose)
@@ -516,9 +526,18 @@ fetch_ldc <- function(data_type,
     } else {
       current_data <- query_ldc(data_type = data_type,
                                 body = main_query_parameters,
-                                api_key = get_stored_key(username = username,
-                                                         api_key_name = api_key_name,
-                                                         keyring_name = keyring_name),
+                                api_key = {if (is.null(api_key) & is.null(username)) {
+                                  NULL
+                                } else {
+                                  get_stored_key(username = username,
+                                                 api_key_name = api_key_name,
+                                                 keyring_name = keyring_name)
+                                }},
+                                # api_key = ifelse(test = is.null(api_key),
+                                #                  no = api_key,
+                                #                  yes = get_stored_key(username = username,
+                                #                                      api_key_name = api_key_name,
+                                #                                      keyring_name = keyring_name)),
                                 base_url = base_url,
                                 timeout = timeout,
                                 verbose = verbose)
@@ -1000,15 +1019,11 @@ coerce_ldc <- function(data,
                                                     coerced_vector
                                                   } else {
                                                     warning(paste0("The variable ", dplyr::cur_column(),
-                                                                   " could not be coerced without introducing NA values and has been left as ", class(.x), "."))
+                                                                   " could not be coerced to date without introducing NA values and has been left as ", class(.x), "."))
                                                     .x
                                                   }
-                                                  }
-                                                ))
-                                                # .fns = ~ substr(x = .x,
-                                                #                 start = 1,
-                                                #                 stop = 10) |>
-                                                #   as.Date(x = _)))
+                                                }
+                                  ))
     
     
     if (verbose) {
@@ -1173,13 +1188,12 @@ query_ldc <- function(data_type,
                              httr::timeout(timeout),
                              httr::user_agent(user_agent),
                              httr::content_type_json(),
-                             httr::add_headers(Authorization = paste("Bearer", 
+                             httr::add_headers(Authorization = paste("Bearer",
                                                                      token[["IdToken"]])),
                              body = body_string,
                              encode = "json")
     }
-    
-  }
+  } 
   
   # What if there's an error????
   if (httr::http_error(response)) {
