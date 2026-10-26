@@ -47,12 +47,13 @@ fetch_ldc <- function(data_type,
                       token = FALSE,
                       keyring_name = NULL,
                       timeout = 300,
-                      take = 10000,
+                      take = 20000,
                       delay = 2000,
                       coerce = TRUE,
                       base_url = "https://api.landscapedatacommons.org/api/v1/",
                       multi_table_queries = FALSE,
                       ignored_tables = NULL,
+                      api_key = NULL,
                       verbose = FALSE,
                       keys = deprecated(),
                       key_type = deprecated(),
@@ -99,6 +100,10 @@ fetch_ldc <- function(data_type,
     api_key_name <- NULL
   }
   
+  if (verbose & !is.null(api_key)) {
+    warning("When providing your API key as an argument, be sure to avoid saving it as plaintext in your code.")
+  }
+  
   if (token) {
     if (!is.null(api_key_name)) {
       if (verbose) {
@@ -134,14 +139,15 @@ fetch_ldc <- function(data_type,
     if (!is.numeric(take) | length(take) > 1) {
       stop("take must either be NULL or a single numeric value.")
     }
-    if (take > 10000) {
-      warning(paste0("The current take value (", take, ") is large enough that there may be errors when retrieving data. Consider setting take to 10000 or less."))
+    if (take > 20000) {
+      message(paste0("The current take value (", take, ") is larger than the maximum currently allowed by the LDC API, 20000 so take will be set to 20000."))
     }
+    take <- 20000
   } else {
     if (verbose) {
-      message("No take value was specified. Defaulting to 10000, the default for the LDC API.")
+      message("No take value was specified. Defaulting to 20000, the maximum for the LDC API.")
     }
-    take <- 10000
+    take <- 20000
   }
   
   if (delay < 0) {
@@ -361,9 +367,14 @@ fetch_ldc <- function(data_type,
         } else {
           current_data <- query_ldc(data_type = current_ancillary_table,
                                     body = current_ancillary_query_parameters,
-                                    api_key = get_stored_key(username = username,
-                                                             api_key_name = api_key_name,
-                                                             keyring_name = keyring_name),
+                                    api_key = if (is.null(api_key)) {
+                                      get_stored_key(username = username,
+                                                     api_key_name = api_key_name,
+                                                     keyring_name = keyring_name)
+                                    } else {
+                                      api_key
+                                    },
+                                    token = NULL,
                                     base_url = base_url,
                                     timeout = timeout,
                                     verbose = verbose)
@@ -515,9 +526,18 @@ fetch_ldc <- function(data_type,
     } else {
       current_data <- query_ldc(data_type = data_type,
                                 body = main_query_parameters,
-                                api_key = get_stored_key(username = username,
-                                                         api_key_name = api_key_name,
-                                                         keyring_name = keyring_name),
+                                api_key = {if (is.null(api_key) & is.null(username)) {
+                                  NULL
+                                } else {
+                                  get_stored_key(username = username,
+                                                 api_key_name = api_key_name,
+                                                 keyring_name = keyring_name)
+                                }},
+                                # api_key = ifelse(test = is.null(api_key),
+                                #                  no = api_key,
+                                #                  yes = get_stored_key(username = username,
+                                #                                      api_key_name = api_key_name,
+                                #                                      keyring_name = keyring_name)),
                                 base_url = base_url,
                                 timeout = timeout,
                                 verbose = verbose)
@@ -908,6 +928,7 @@ fetch_ldc_metadata <- function(data_type,
 coerce_ldc <- function(data,
                        data_type,
                        check_api = FALSE,
+                       force_coercion = FALSE,
                        base_url = "https://api.landscapedatacommons.org/api/v1",
                        verbose = FALSE) {
   data_type <- ldc_table_names(alias = data_type)
@@ -947,8 +968,28 @@ coerce_ldc <- function(data,
                                                                                              data_class_r != "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
-                                                .fns = ~ methods::as(object = .x,
-                                                                     Class = var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()])),
+                                                .fns = ~ {
+                                                  target_class <- var_lut[["data_class_r"]][var_lut[["field"]] == dplyr::cur_column()]
+                                                  current_vector <- .x
+                                                  coerced_vector <- methods::as(object = .x,
+                                                                                Class = target_class)
+                                                  # This is here because we need to make sure that we don't get false positives for NA introduction
+                                                  # when the original vector already had NA values in it.
+                                                  coerced_fine <- identical(which(is.na(current_vector)),
+                                                                            which(is.na(coerced_vector)))
+                                                  
+                                                  if (coerced_fine) {
+                                                    coerced_vector
+                                                  } else if (force_coercion) {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " was coerced to ", target_class, " but NA values were introduced."))
+                                                    coerced_vector
+                                                  } else {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " could not be coerced without introducing NA values and has been left as ", class(.x), "."))
+                                                    current_vector
+                                                  }
+                                                }),
                                   # Doing some manual work on the dates because
                                   # the previous step claims there's no method for
                                   # coercion as written.
@@ -959,10 +1000,30 @@ coerce_ldc <- function(data,
                                                                                              data_class_r == "date") |>
                                                                              dplyr::pull(.data = _,
                                                                                          var = field)),
-                                                .fns = ~ substr(x = .x,
-                                                                start = 1,
-                                                                stop = 10) |>
-                                                  as.Date(x = _)))
+                                                .fns = ~ {
+                                                  # NOTE! This enforces an as.character() which we expect to do nothing
+                                                  # because variables being coerced to dates *should* be character
+                                                  # but this could cause some trouble.
+                                                  current_vector <- as.character(.x) |>
+                                                    substr(x = ,
+                                                           start = 1,
+                                                           stop = 10)
+                                                  coerced_vector <- as.Date(x = current_vector)
+                                                  coerced_fine <- identical(which(is.na(current_vector)),
+                                                                            which(is.na(coerced_vector)))
+                                                  if (coerced_fine) {
+                                                    coerced_vector
+                                                  } else if (force_coercion) {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " was coerced to date but NA values were introduced."))
+                                                    coerced_vector
+                                                  } else {
+                                                    warning(paste0("The variable ", dplyr::cur_column(),
+                                                                   " could not be coerced to date without introducing NA values and has been left as ", class(.x), "."))
+                                                    .x
+                                                  }
+                                                }
+                                  ))
     
     
     if (verbose) {
@@ -1127,13 +1188,12 @@ query_ldc <- function(data_type,
                              httr::timeout(timeout),
                              httr::user_agent(user_agent),
                              httr::content_type_json(),
-                             httr::add_headers(Authorization = paste("Bearer", 
+                             httr::add_headers(Authorization = paste("Bearer",
                                                                      token[["IdToken"]])),
                              body = body_string,
                              encode = "json")
     }
-    
-  }
+  } 
   
   # What if there's an error????
   if (httr::http_error(response)) {
@@ -1207,7 +1267,7 @@ query_ldc <- function(data_type,
 #' 
 stringify_query_parameter <- function(variable,
                                       operator = "equals",
-                                      values){
+                                      values) {
   
   
   if (!is.character(operator) | length(operator) != 1) {
