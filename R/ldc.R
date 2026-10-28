@@ -1238,8 +1238,14 @@ query_ldc <- function(data_type,
   content_df <- jsonlite::fromJSON(content_character) |>
     as.data.frame(x = _)
   
-  if (nrow(content_df) < 1 & is.null(api_key) & verbose) {
-    message("No records were returned, but that may be because no API key was provided and any qualifying records require permissions to access.")
+  if (nrow(content_df) > 0) {
+    content_df <- content_df |>
+      dplyr::mutate(.data = _,
+                    retrieval_date = Sys.Date())
+  } else {
+    if (is.null(api_key) & verbose) {
+      message("No records were returned, but that may be because no API key was provided and any qualifying records require permissions to access.")
+    }
   }
   
   content_df
