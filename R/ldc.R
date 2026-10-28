@@ -1139,6 +1139,16 @@ query_ldc <- function(data_type,
       stop("If the argument body is not NULL it must either be a correctly-formatted string or a list that can be converted to a correctly-string with format_query_parameters().")
     }
   }
+  
+  # tblProject is not currently queryable with parameters???
+  if (data_type == "tblProject") {
+    if (verbose) {
+      message("Because data_type is 'tblProject', no parameters will be passed in the query.")
+    }
+    body_string <- "{}"
+  }
+  
+  
   if (verbose) {
     message("Querying using the body:")
     message(body_string)
@@ -1228,8 +1238,14 @@ query_ldc <- function(data_type,
   content_df <- jsonlite::fromJSON(content_character) |>
     as.data.frame(x = _)
   
-  if (nrow(content_df) < 1 & is.null(api_key) & verbose) {
-    message("No records were returned, but that may be because no API key was provided and any qualifying records require permissions to access.")
+  if (nrow(content_df) > 0) {
+    content_df <- content_df |>
+      dplyr::mutate(.data = _,
+                    retrieval_date = Sys.Date())
+  } else {
+    if (is.null(api_key) & verbose) {
+      message("No records were returned, but that may be because no API key was provided and any qualifying records require permissions to access.")
+    }
   }
   
   content_df
