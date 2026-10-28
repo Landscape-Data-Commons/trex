@@ -2,8 +2,8 @@ Package: trex
 Type: Package
 Title: Tools for accessing Landscape Data Commons (LDC) and Ecosystems Dynamics Interpretive Tool (EDIT) APIs
 Version: 2.0.7
-Author: c(person(given = "Nelson", family = "Stauffer, role = c("aut", "cre"), email = "nelson.stauffer@ars.usda.gov"),
-          person(given = "Joe", family = "Brehm", role = c("aut", "cre"), email = "jrbrehm@nmsu.edu"))
+Author: c(person(given = "Nelson", family = "Stauffer, role = c("aut", "cre"), email = "nelson.stauffer@usda.gov"),
+          person(given = "Joe", family = "Brehm", role = c("cre")))
 Maintainer: Nelson Stauffer <nelson.stauffer@usda.gov>
 Description: Tools for accessing Landscape Data Commons (LDC), Ecosystems Dynamics Interpretive Tool (EDIT), and Rangeland Analysis Platform (RAP) APIs
 License: GPL-3
